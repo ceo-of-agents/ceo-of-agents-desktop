@@ -9,7 +9,7 @@ import path from 'node:path';
 import { APP_REPO } from '../config';
 import { t } from '../../shared/strings';
 import type { AppUpdateStatus } from '../../shared/types';
-import { run, type Runner } from './exec';
+import { run, type RunResult, type Runner } from './exec';
 import { compareVersions, parseVersion } from './version';
 
 const CACHE_MS = 60 * 60 * 1000;
@@ -40,16 +40,51 @@ export function parseRelease(stdout: string): Release | null {
   }
 }
 
-/** The latest release with a .dmg, or null for anything that goes wrong (gh missing, not signed in, no release, bad output). */
-export async function fetchLatestApp(runner: Runner = run, repo = APP_REPO): Promise<Release | null> {
+/** How one `gh release view` run ended. */
+export type ReleaseOutcome =
+  | { kind: 'release'; release: Release }
+  | { kind: 'noRelease' }
+  | { kind: 'ghMissing' }
+  | { kind: 'notSignedIn' }
+  | { kind: 'failed' };
+
+/** Pure: tells apart the ways `gh release view` can end (gh not found, not signed in, other failure or timeout, no usable release, a release). */
+export function classifyRelease(r: RunResult): ReleaseOutcome {
+  if (r.error) return /ENOENT|not found/i.test(r.error) ? { kind: 'ghMissing' } : { kind: 'failed' };
+  if (r.code !== 0) return /gh auth login|not logged in|authenticat|HTTP 401/i.test(r.stderr) ? { kind: 'notSignedIn' } : { kind: 'failed' };
+  const release = parseRelease(r.stdout);
+  return release ? { kind: 'release', release } : { kind: 'noRelease' };
+}
+
+/** Runs `gh release view` and classifies the result. Never throws. */
+export async function fetchLatestOutcome(runner: Runner = run, repo = APP_REPO): Promise<ReleaseOutcome> {
   try {
-    const r = await runner('gh', ['release', 'view', '--repo', repo, '--json', 'tagName,assets'], { timeoutMs: VIEW_TIMEOUT_MS });
-    if (r.error || r.code !== 0) return null;
-    return parseRelease(r.stdout);
+    return classifyRelease(await runner('gh', ['release', 'view', '--repo', repo, '--json', 'tagName,assets'], { timeoutMs: VIEW_TIMEOUT_MS }));
   } catch {
-    return null;
+    return { kind: 'failed' };
   }
 }
+
+/** The latest release with a .dmg, or null for anything that goes wrong (gh missing, not signed in, no release, bad output). */
+export async function fetchLatestApp(runner: Runner = run, repo = APP_REPO): Promise<Release | null> {
+  const o = await fetchLatestOutcome(runner, repo);
+  return o.kind === 'release' ? o.release : null;
+}
+
+/** The result of the menu's "Check for Updates…". `reason` is already translated. */
+export type ManualCheckResult =
+  | { kind: 'upToDate'; current: string }
+  | { kind: 'available'; current: string; latest: string }
+  | { kind: 'failed'; reason: string }
+  | { kind: 'dev' }
+  | { kind: 'busy' };
+
+const FAIL_KEYS: Record<'noRelease' | 'ghMissing' | 'notSignedIn' | 'failed', string> = {
+  ghMissing: 'appUpdate.check.err.ghMissing',
+  notSignedIn: 'appUpdate.check.err.notSignedIn',
+  failed: 'appUpdate.check.err.network',
+  noRelease: 'appUpdate.check.err.noRelease',
+};
 
 /** Pure: the update is offered when `latest` is newer than `current`. */
 export function isNewer(latest: string | null, current: string): boolean {
@@ -265,6 +300,7 @@ export class AppUpdater {
   private relaunch = false;
   private started = false;
   private checking: Promise<void> | null = null;
+  private lastOutcome: ReleaseOutcome = { kind: 'noRelease' };
 
   constructor(private readonly d: AppUpdaterDeps) {
     this.state = { state: d.packaged ? 'idle' : 'dev', current: d.version, latest: null, error: null };
@@ -287,7 +323,9 @@ export class AppUpdater {
     if (!force && this.checkedAt && now - this.checkedAt < CACHE_MS) return this.state;
     if (!this.checking) {
       this.checking = (async () => {
-        const release = await fetchLatestApp(this.d.runner ?? run);
+        const outcome = await fetchLatestOutcome(this.d.runner ?? run);
+        this.lastOutcome = outcome;
+        const release = outcome.kind === 'release' ? outcome.release : null;
         const latest = release?.version ?? null;
         this.checkedAt = (this.d.now ?? Date.now)();
         // A click may have started a download meanwhile: the check never overwrites that.
@@ -301,6 +339,19 @@ export class AppUpdater {
     }
     await this.checking;
     return this.state;
+  }
+
+  /** The menu's "Check for Updates…": always asks GitHub (skips the cache) through the same path as `check`, then says what happened. */
+  async checkNow(): Promise<ManualCheckResult> {
+    if (!this.d.packaged) return { kind: 'dev' };
+    const busy = () => this.state.state === 'downloading' || this.state.state === 'ready';
+    if (busy()) return { kind: 'busy' };
+    await this.check(true);
+    if (busy()) return { kind: 'busy' };
+    const o = this.lastOutcome;
+    if (o.kind !== 'release') return { kind: 'failed', reason: t(FAIL_KEYS[o.kind]) };
+    if (this.state.state === 'available' && this.state.latest) return { kind: 'available', current: this.d.version, latest: this.state.latest };
+    return { kind: 'upToDate', current: this.d.version };
   }
 
   /** The "Update app" button: stage, then ask to quit. When already staged, only asks to quit again. */

@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+vi.mock('electron', () => ({ app: { name: 'CEO of Agents' }, Menu: {} }));
+
 import { buildMenuTemplate } from '../src/main/menu';
 
 describe('application menu', () => {
   it('Close Tab is Cmd+W and sends the close-tab event; the window closes with Cmd+Shift+W', () => {
     const emit = vi.fn();
     const tpl = buildMenuTemplate(emit, true);
-    expect(tpl[0]).toEqual({ role: 'appMenu' });
+    expect(tpl[0].label).toBe('CEO of Agents');
     const file = tpl.find((m) => m.label === 'File');
     const items = file?.submenu as Array<{ label: string; accelerator: string; click: () => void }>;
     const item = items.find((i) => i.label === 'Close Tab')!;
@@ -72,5 +74,25 @@ describe('application menu', () => {
     const tpl = buildMenuTemplate(emit, true, true);
     const accelerators = tpl.flatMap((m) => (Array.isArray(m.submenu) ? (m.submenu as Array<{ accelerator?: string }>).map((i) => i.accelerator) : []));
     expect(accelerators.filter((a) => a === 'CmdOrCtrl+Shift+F')).toHaveLength(1);
+  });
+
+  it('Mac app menu: About, Check for Updates…, then the usual items, Quit last; the item calls the injected handler', () => {
+    const emit = vi.fn();
+    const check = vi.fn();
+    const tpl = buildMenuTemplate(emit, true, false, check);
+    type Item = { label?: string; role?: string; type?: string; click?: () => void };
+    const items = tpl[0].submenu as Item[];
+    expect(items.map((i) => i.label ?? i.role ?? i.type)).toEqual(['about', 'Check for Updates…', 'separator', 'services', 'separator', 'hide', 'hideOthers', 'unhide', 'separator', 'quit']);
+    items[1].click?.();
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('other platforms get the item under Help', () => {
+    const check = vi.fn();
+    const tpl = buildMenuTemplate(vi.fn(), false, false, check);
+    const help = tpl.find((m) => m.role === 'help');
+    (help?.submenu as Array<{ label: string; click: () => void }>)[0].click();
+    expect(check).toHaveBeenCalledTimes(1);
   });
 });
