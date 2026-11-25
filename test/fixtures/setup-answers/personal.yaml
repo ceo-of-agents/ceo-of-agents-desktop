@@ -1,0 +1,63 @@
+# Sample answers: purpose personal (health, money and paperwork), company level.
+# The three personal catalog entries exist only here. One is changed, one custom department is
+# added. No repos, no roadmap, no policy and no employer rules. Attribution: none.
+# Validate: python3 scripts/ci/check_setup_answers.py --file examples/setup-answers/personal.yaml
+schema: setup-answers/1
+language:
+  chat: it
+  files: en
+org:
+  purpose: personal
+  level: company
+  id: ME
+  name: Me
+services: no
+ceo:
+  profile: non-technical
+about:
+  what: |
+    - My health appointments
+    - My bills and savings
+    - My documents and deadlines
+  why: To stop losing time and missing deadlines.
+  stage: setting up
+departments:
+  - from: catalog
+    id: health
+  - from: catalog
+    id: money
+    changes:
+      scope_add:
+        - A yearly list of subscriptions to review
+  - from: catalog
+    id: paperwork
+  - from: custom
+    id: travel
+    role: Travel
+    purpose: Keep trips, bookings and travel documents in order.
+    scope:
+      - Trip plans and booking confirmations
+      - Passport and visa deadlines
+    triggers:
+      - A trip is planned
+      - A travel document is about to expire
+    exclusions:
+      - item: Booking or paying for anything
+        owner: ceo
+    core_job: Keep every trip and its documents ready ahead of time.
+names:
+  cos: Chief of staff
+  ceo: later
+  departments:
+    health: Health
+    money: Money
+    paperwork: Paperwork
+    travel: Travel
+gates: accept
+models:
+  cos: opus
+  departments: sonnet
+remote:
+  hq: none
+attribution: none
+enable_plugin: true

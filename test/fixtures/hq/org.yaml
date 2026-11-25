@@ -1,0 +1,65 @@
+schema: org/5
+framework_version: 0.13.0
+org:
+  id: ACME
+  name: Acme
+  level: company              # company | holding
+  purpose: company
+ceo:
+  role_id: ceo      # the CEO is a role, not a hard-coded person
+  display_name: ""   # optional
+cos:
+  display_name: "Ada"
+language:
+  chat: it       # language the CoS uses with the CEO
+  files: en      # language of every file in hq
+models:
+  tiers: [opus, sonnet, haiku]  # most to least capable
+  cos: opus
+  departments: opus   # applies to departments unless overridden below
+  workers: one-down             # a rule, not a model: one tier below the parent; never escalate
+# Zero departments is valid. Item shape:
+#  - id: engineering            # kebab-case; departments/<id>/charter.md, cards and handoffs
+#    agent: max                # agent name: persona in lowercase, or the id; file .claude/agents/<agent>.md
+#    from_catalog: engineering  # catalog id, "custom", or "own" (your own agent or skill, used as it is)
+#    display_name: Engineering  # role name or persona, the CEO's choice
+#    model: opus
+#    connectors: []             # MCP tool patterns granted to this department only
+departments: 
+  - id: engineering
+    agent: max
+    from_catalog: engineering
+    display_name: Max
+    model: opus
+    connectors: []
+  - id: design-brand
+    agent: nora
+    from_catalog: design-brand
+    display_name: Nora
+    model: opus
+    connectors: []
+gates:                          # action ids from the framework gate table
+  free: [issues-and-labels, comments, drafts, open-pr, research, hq-write]
+  notice: [push-non-deploy-branch, hq-commit, dispatch-pushing-department, merge]
+  ok: [deploy, publish, contact-people, spend-money, rotate-secrets, delete-data, org-or-repo-settings, change-brand-rules, change-policy-rules, file-or-sign, make-payment]
+accounts:
+  forbidden_connectors: []   # optional: connectors no agent of this org may use; added only through a decision
+repos:
+  - slug: example-owner/acme-hq
+    role: hq
+    visibility: private
+    issues_home: false
+    protected: false
+  - slug: example-owner/acme-app
+    role: product
+    visibility: private
+    issues_home: true
+    protected: false   # the CEO's own repo
+tracker: none
+policy: null
+# Either `null` (no holding policy) or:
+#  repo: <git remote of the holding's policies repo>
+#  local: <path to the CEO's local clone of the policies repo, read-only>
+#  pin: <commit sha>
+policies_repo: null
+employer_rules: null

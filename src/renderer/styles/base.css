@@ -1,0 +1,44 @@
+* { box-sizing: border-box; }
+/* The shell never scrolls: only the thread, the side panel and lists scroll inside their own areas. */
+html, body, #root { height: 100%; margin: 0; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 var(--fs-ui) / 1.4 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, h5, p { margin: 0; }
+button, textarea, input, select { font: inherit; color: inherit; }
+code, .code { font-family: var(--mono); }
+
+.muted { color: var(--text-2); }
+.small { font-size: var(--fs-meta); }
+.tabular, .tnum { font-variant-numeric: tabular-nums; }
+.center { text-align: center; padding: var(--sp-7); }
+.hint { color: var(--text-2); font-size: var(--fs-meta); margin-top: var(--sp-2); }
+.error-text { color: var(--status-error); font-size: var(--fs-meta); }
+.link { color: var(--teal); word-break: break-all; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row { display: flex; gap: var(--sp-3); margin-top: var(--sp-3); flex-wrap: wrap; }
+.row.end { justify-content: flex-end; }
+.no-drag { -webkit-app-region: no-drag; }
+
+/* inline Markdown in one-line items */
+.imd a { color: var(--teal); }
+.imd code { background: var(--ink); padding: 0 4px; border-radius: var(--r-xs); font-size: 0.92em; }
+
+/* Global focus (state matrix, section 6): keyboard only, neutral. */
+:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+:focus:not(:focus-visible) { outline: none; }
+/* Inside cards and lists the ring is drawn inside the element. */
+.focus-inset:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--muted); }
+
+@keyframes coa-spin { to { transform: rotate(360deg); } }
+@keyframes coa-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes coa-enter {
+  from { opacity: 0; transform: translateY(var(--enter-y, 0)) scale(var(--enter-scale, 1)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes coa-leave { from { opacity: 1; } to { opacity: 0; } }
+@keyframes coa-pop { from { transform: scale(var(--scale-pop-from)); } to { transform: none; } }

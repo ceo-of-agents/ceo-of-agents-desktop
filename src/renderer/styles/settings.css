@@ -1,0 +1,118 @@
+/* Settings view: a full-window view like Claude desktop's (section list on the left, the section on the right).
+   It covers the window; its top 52 px is a drag strip (the traffic lights stay clear), buttons in it are no-drag. */
+
+.settings-view {
+  position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--bg);
+  --enter-scale: var(--scale-modal);
+}
+.settings-view:focus { outline: none; }
+.settings-view[data-state='open'] { animation: coa-enter var(--fade) var(--ease-appear) both; }
+.settings-view[data-state='closed'] { animation: coa-leave var(--fade-fast) var(--ease-exit) forwards; pointer-events: none; }
+
+.settings-strip {
+  flex: none; display: flex; align-items: center; justify-content: space-between; height: var(--h-topbar); padding: 0 var(--sp-4) 0 88px;
+  border-bottom: 1px solid var(--line); -webkit-app-region: drag;
+}
+.settings-strip h2 { font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 600; }
+.settings-body { flex: 1; min-height: 0; display: flex; }
+
+/* left column: the org switcher, then the sections */
+.settings-side {
+  width: 220px; flex: none; display: flex; flex-direction: column; gap: var(--sp-5); padding: var(--sp-5) var(--sp-3);
+  background: var(--bg); border-right: 1px solid var(--line); overflow-y: auto;
+}
+.org-switch { position: relative; }
+.org-tile {
+  position: absolute; left: var(--sp-3); top: 50%; z-index: 1; width: 24px; height: 24px; margin-top: -12px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: var(--r-s); background: var(--bg-raised); color: var(--text); pointer-events: none;
+  font: 600 var(--fs-label) / var(--lh-label) var(--sans);
+}
+.org-tile .org-icon-img { border-radius: calc(var(--r-s) - 1px); }
+.org-icon-row { display: flex; align-items: center; gap: var(--sp-3); }
+.org-icon-preview { position: relative; flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--bg-raised); color: var(--text); font: 600 var(--fs-ui) / var(--lh-ui) var(--sans); }
+.org-icon-msg { grid-column: 1 / -1; margin: var(--sp-2) 0 0; font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.org-icon-msg.error { color: var(--status-error); }
+.org-switch select.input { height: calc(var(--h-control) + var(--sp-3)); padding-left: 44px; font-weight: 600; }
+.settings-tabs { display: flex; flex-direction: column; gap: var(--sp-1); }
+.settings-tab {
+  display: flex; align-items: center; height: var(--h-control); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-s); background: transparent;
+  color: var(--text-2); font: 500 var(--fs-ui) / var(--lh-ui) var(--sans); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-draw), color var(--dur-fast) var(--ease-draw);
+}
+.settings-tab:hover { background: var(--bg-hover); color: var(--text); }
+.settings-tab:active { background: var(--bg-press); }
+.settings-tab[aria-selected='true'] { background: var(--bg-selected); color: var(--text); }
+.settings-tab:focus-visible { outline-offset: -2px; }
+
+/* right: the section */
+.settings-scroll { flex: 1; min-width: 0; overflow-y: auto; }
+.settings-content { max-width: 640px; padding: var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-5); }
+.settings-title { font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 600; }
+.settings-apply { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); min-height: var(--h-control); }
+.settings-apply .btn { flex: none; }
+
+.settings-group { margin: 0; padding: var(--sp-5) 0 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--sp-3); }
+.setting-label { margin: 0; padding: 0; font-size: var(--fs-ui); line-height: var(--lh-ui); font-weight: 500; color: var(--text); }
+.setting-note { margin: 0; font-size: var(--fs-meta); line-height: var(--lh-meta); }
+
+/* a setting: label and note on the left, the control on the right */
+.setting-row { display: grid; grid-template-columns: minmax(0, 1fr) 240px; grid-template-areas: 'label control' 'note control'; column-gap: var(--sp-5); row-gap: var(--sp-1); align-items: start; }
+.setting-row + .setting-row { margin-top: var(--sp-3); }
+.setting-row .setting-label { grid-area: label; padding-top: 5px; }
+.setting-row .setting-control { grid-area: control; }
+.setting-row .setting-note { grid-area: note; }
+.setting-check { display: flex; align-items: center; height: var(--h-control); }
+.setting-check input { margin: 0; accent-color: var(--teal); }
+.setting-modes { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.setting-modes legend { margin-bottom: var(--sp-2); }
+.setting-modes .setting-note { margin-top: var(--sp-3); }
+
+/* rule lists */
+.rule-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.rule-row { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--h-control); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-s); }
+.rule-row:hover { background: var(--bg-hover); }
+.rule-text { flex: 1 1 auto; min-width: 0; font: 400 var(--fs-meta) / var(--lh-meta) var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.rule-chip { flex: none; padding: 1px var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); white-space: nowrap; }
+.rule-source { flex: none; font-size: var(--fs-meta); line-height: var(--lh-meta); white-space: nowrap; }
+.rule-empty { margin: 0; font-size: var(--fs-meta); line-height: var(--lh-meta); padding: 0 var(--sp-3); }
+.rule-row .btn { flex: none; }
+
+/* About */
+.about-list { margin: 0; gap: 0; }
+.about-row { display: grid; grid-template-columns: 220px minmax(0, 1fr); column-gap: var(--sp-5); align-items: baseline; padding: var(--sp-3) 0; }
+.about-row + .about-row { border-top: 1px solid var(--line); }
+.about-value { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: var(--fs-ui); line-height: var(--lh-ui); }
+.about-value.mono { font-family: var(--mono); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+
+/* Connectors */
+.settings-notes { display: flex; flex-direction: column; gap: var(--sp-2); }
+.conn-depts { display: flex; flex-direction: column; gap: var(--sp-5); margin-top: var(--sp-2); }
+.conn-dept { display: flex; flex-direction: column; gap: var(--sp-2); }
+.conn-dept + .conn-dept { padding-top: var(--sp-5); border-top: 1px solid var(--line); }
+.conn-head { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; }
+.conn-name { font-size: var(--fs-ui); line-height: var(--lh-ui); font-weight: 600; color: var(--text); }
+.conn-agent { font: 400 var(--fs-meta) / var(--lh-meta) var(--mono); overflow-wrap: anywhere; }
+.conn-lock { font-size: var(--fs-meta); line-height: var(--lh-meta); font-weight: 600; color: var(--status-error); }
+.conn-actions { display: flex; align-items: center; gap: var(--sp-2); }
+.conn-form { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-m); background: var(--bg-raised); }
+.conn-field { display: flex; flex-direction: column; gap: var(--sp-1); }
+.conn-field .input { width: 100%; }
+.conn-field .mono-input { font-family: var(--mono); font-size: var(--fs-meta); }
+.conn-field .select-wrap { display: block; }
+
+/* connectors loaded in the org's chats */
+.setting-sublabel { margin: var(--sp-3) 0 0; font-size: var(--fs-meta); line-height: var(--lh-meta); font-weight: 600; color: var(--text-2); }
+.conn-loaded { align-items: flex-start; }
+.conn-loaded-main { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; flex: 1 1 auto; }
+.conn-loaded-name { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); min-width: 0; }
+.conn-loaded-name .rule-text { flex: 0 1 auto; }
+.rule-chip.conn-bad { color: var(--status-error); }
+.rule-chip.conn-blocked { color: var(--status-degraded); }
+
+/* Voice editor: Base, Channels and Audiences as text areas in the hq's voice file */
+.voice-editor { display: flex; flex-direction: column; gap: var(--sp-3); }
+.voice-text { width: 100%; height: auto; min-height: 72px; padding: var(--sp-2) var(--sp-3); resize: vertical; font: var(--fs-ui) / var(--lh-ui) var(--mono); }
+.voice-entry { display: flex; flex-direction: column; gap: var(--sp-2); }
+.voice-entry-head { display: flex; align-items: center; gap: var(--sp-3); }
+.voice-entry-head .input { flex: 1; min-width: 0; font-weight: 600; }
+.voice-actions { display: flex; align-items: center; gap: var(--sp-3); }

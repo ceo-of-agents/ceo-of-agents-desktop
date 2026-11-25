@@ -1,0 +1,9 @@
+# Read by the CEO of Agents app. Optional; delete it and the app falls back to initials.
+version: 1
+departments:            # keys are department ids from org.yaml
+  engineering:
+    icon: code          # a name from the spec's icon list
+    colour: blue        # neutral | blue | pink
+  design-brand:
+    icon: pen-tool
+    colour: pink

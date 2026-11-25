@@ -1,0 +1,12 @@
+[
+  {
+    "label": "A",
+    "text": "Write the numbers 1 to 150 separated by spaces.",
+    "afterLine": -1
+  },
+  {
+    "label": "B",
+    "text": "Then say DONE.",
+    "afterLine": 6
+  }
+]

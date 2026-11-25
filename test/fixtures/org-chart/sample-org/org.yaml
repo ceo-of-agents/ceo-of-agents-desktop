@@ -1,0 +1,28 @@
+org:
+  id: ACME
+  name: Acme
+  level: company              # company | holding
+  purpose: company
+ceo:
+  role_id: ceo      # the CEO is a role, not a hard-coded person
+  display_name: ""   # optional
+cos:
+  display_name: "Ada"
+models:
+  tiers: [opus, sonnet, haiku]  # most to least capable
+  cos: opus
+  departments: opus   # applies to departments unless overridden below
+  workers: one-down             # a rule, not a model: one tier below the parent; never escalate
+departments:
+  - id: engineering
+    agent: max
+    from_catalog: engineering
+    display_name: Max
+    model: opus
+    connectors: []
+  - id: design-brand
+    agent: nora
+    from_catalog: design-brand
+    display_name: Nora
+    model: opus
+    connectors: []

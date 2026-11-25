@@ -1,0 +1,12 @@
+[
+  {
+    "label": "A",
+    "text": "Run the bash command `sleep 6`, then reply with only the word ALPHA.",
+    "afterLine": -1
+  },
+  {
+    "label": "B",
+    "text": "Also reply with only the word BETA.",
+    "afterLine": 17
+  }
+]

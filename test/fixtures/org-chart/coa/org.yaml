@@ -1,0 +1,41 @@
+schema: org/5
+framework_version: 0.13.0
+org:
+  id: SAMPLE
+  name: Sample Org
+  level: company              # company | holding
+  purpose: company
+ceo:
+  role_id: ceo      # the CEO is a role, not a hard-coded person
+  display_name: ""   # optional
+cos:
+  display_name: "Ada"
+language:
+  chat: en
+  files: en
+models:
+  tiers: [opus, sonnet, haiku]  # most to least capable
+  cos: opus
+  departments: opus   # applies to departments unless overridden below
+  workers: one-down             # a rule, not a model: one tier below the parent; never escalate
+departments:
+  - id: engineering
+    agent: max
+    from_catalog: engineering
+    display_name: Max
+    model: opus
+    connectors: []
+  - id: design-brand
+    agent: lena
+    from_catalog: design-brand
+    display_name: Lena
+    model: opus
+    connectors: []
+gates:
+  free: [issues-and-labels, comments, drafts, hq-write]
+  notice: [hq-commit]
+  ok: [deploy, publish, spend-money]
+accounts:
+  forbidden_connectors: []
+repos: []
+tracker: none

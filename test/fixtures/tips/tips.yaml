@@ -1,0 +1,74 @@
+# Contextual tips: templates shown to the CEO, one at a time, when their condition holds.
+# Format and rules: schemas/tips.md
+schema: tips/1
+tips:
+  - id: approve-several
+    since: "0.14.0"
+    when:
+      pending: {kind: ok, min: 3}
+    text: "Several items wait on your OK. You can clear them in one message."
+    phrase: "Approve {codes}"
+
+  - id: resume
+    since: "0.14.0"
+    when:
+      days_since_last_session: {min: 7}
+    text: "Back after a pause? {cos_name} can pick up where you left off."
+    phrase: "Resume"
+
+  - id: weekly-brief
+    since: "0.14.0"
+    when:
+      days_since_last_brief: {min: 7}
+    text: "No brief for a week. Get a short summary of what moved and what waits on you."
+    phrase: "Brief"
+
+  - id: decision-card
+    since: "0.14.0"
+    when:
+      chat: hesitant-question
+    text: "Unsure about a choice? Turn it into a decision card with options."
+    phrase: "Decide whether ..."
+
+  - id: frame-idea
+    since: "0.14.0"
+    when:
+      chat: vague-request
+    text: "Have a rough idea? Let {cos_name} frame it before anyone starts."
+    phrase: "I have an idea: ..."
+
+  - id: open-initiative
+    since: "0.12.0"
+    when:
+      chat: recurring-topic
+    text: "Work that spans several sessions can be tracked as an initiative."
+    phrase: "Open an initiative for ..."
+
+  - id: own-todo
+    since: "0.17.0"
+    when:
+      chat: personal-todo
+    text: "Keep your own to-dos on your list, apart from what waits on your OK."
+    phrase: "Track: reply to ..."
+
+  - id: draft-in-your-voice
+    pending: true
+    depends_on: 105
+    when:
+      file_missing: company/ceo-voice.md
+    text: "Have messages drafted in your own voice: define it once, then every draft sounds like you."
+    phrase: "Draft a mail to ..."
+
+  - id: add-department
+    since: "0.14.0"
+    when:
+      chat: outside-departments
+    text: "The same kind of request keeps coming up and no department covers it. You can add one."
+    phrase: "Add a department for ..."
+
+  - id: update-hq
+    since: "0.7.0"
+    when:
+      hq_behind_plugin: true
+    text: "A newer plugin version is installed. Bring the hq up to date."
+    phrase: "Update the hq"

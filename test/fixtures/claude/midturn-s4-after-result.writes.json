@@ -1,0 +1,12 @@
+[
+  {
+    "label": "A",
+    "text": "Reply with only OK.",
+    "afterLine": -1
+  },
+  {
+    "label": "B",
+    "text": "Reply with only YES.",
+    "afterLine": 11
+  }
+]

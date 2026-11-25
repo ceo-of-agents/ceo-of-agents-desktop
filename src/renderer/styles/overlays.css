@@ -1,0 +1,62 @@
+/* Overlays (5.12): popover, modal, toasts. Tooltip lives in controls.css. */
+
+.popover {
+  position: absolute; right: 0; top: calc(100% + var(--sp-3)); width: 300px; z-index: 10; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--shadow-pop);
+  --enter-y: var(--shift-popover);
+}
+.popover:focus { outline: none; }
+.popover[data-state='open'] { animation: coa-enter var(--fade) var(--ease-appear) both; }
+.popover[data-state='closed'] { animation: coa-leave var(--fade-fast) var(--ease-exit) forwards; pointer-events: none; }
+.popover ul { margin: 0; padding-left: var(--sp-5); }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: var(--backdrop); }
+.modal-backdrop[data-state='open'] { animation: coa-fade-in var(--fade) var(--ease-draw) both; }
+.modal-backdrop[data-state='closed'] { animation: coa-leave var(--fade-fast) var(--ease-exit) forwards; }
+.modal {
+  width: 440px; max-width: 90vw; max-height: 90vh; overflow-y: auto; padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4);
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--shadow-pop);
+  --enter-scale: var(--scale-modal);
+}
+.modal:focus { outline: none; }
+.modal-backdrop[data-state='open'] .modal { animation: coa-enter var(--fade) var(--ease-appear) both; }
+.modal h2 { font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 600; }
+.modal .row.end { gap: var(--sp-3); margin-top: var(--sp-2); }
+.modal fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.radio { display: flex; gap: var(--sp-3); align-items: center; min-height: var(--h-control); padding: 0 var(--sp-3); border-radius: var(--r-s); cursor: pointer; transition: background-color var(--dur-fast) var(--ease-draw); }
+.radio:hover { background: var(--bg-hover); }
+.radio input { accent-color: var(--teal); }
+/* A radio with a description: the name, then a muted line; the dot sits on the name's line. */
+.radio:has(.radio-hint) { align-items: flex-start; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.radio:has(.radio-hint) input { margin-top: 3px; }
+.radio-text { display: flex; flex-direction: column; gap: var(--sp-1); }
+.radio-hint { font-size: var(--fs-meta); line-height: var(--lh-meta); color: var(--text-2); }
+
+.toasts { position: fixed; right: var(--sp-5); bottom: var(--sp-5); width: 340px; z-index: 30; display: flex; flex-direction: column; }
+.toast-slot { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur-fold) var(--ease-move); }
+.toast-slot[data-phase='collapsing'] { grid-template-rows: 0fr; }
+.toast-slot-inner { min-height: 0; padding-top: var(--sp-3); }
+.toast-slot[data-phase='collapsing'] > .toast-slot-inner { overflow: hidden; }
+.toast {
+  padding: 10px var(--sp-4); background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--shadow-pop);
+  color: var(--text); font-size: var(--fs-ui); line-height: var(--lh-ui); font-weight: 600; overflow-wrap: anywhere;
+  --enter-y: var(--shift-toast);
+  animation: coa-enter var(--fade) var(--ease-appear) both;
+}
+.toast.has-action { display: flex; align-items: center; gap: var(--sp-3); cursor: pointer; }
+.toast-text { flex: 1; min-width: 0; }
+.toast-action { flex: none; }
+.toast-slot:not([data-phase='open']) .toast { animation: coa-leave var(--fade-fast) var(--ease-exit) forwards; }
+
+/* A select: no native look, a muted chevron-down at the right (5.2). */
+.select-wrap { position: relative; display: block; }
+.select-wrap select.input { width: 100%; padding-right: 30px; appearance: none; -webkit-appearance: none; cursor: pointer; text-overflow: ellipsis; }
+.select-chev { position: absolute; right: var(--sp-3); top: 50%; margin-top: -6px; color: var(--text-2); pointer-events: none; transform: rotate(90deg); }
+
+/* Draft form and the copy buttons under a draft */
+.draft-form { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.draft-field { display: flex; flex-direction: column; gap: var(--sp-1); }
+.draft-field .select-wrap { display: block; }
+.draft-message { height: auto; padding: var(--sp-2) var(--sp-3); resize: vertical; font: var(--fs-ui) / var(--lh-ui) var(--sans); }
+.draft-copy { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); }

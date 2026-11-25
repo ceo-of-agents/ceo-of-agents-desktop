@@ -1,0 +1,25 @@
+/* Department liveness: the dispatch indicator on org chart nodes and under the side panel's department rows. */
+.dp-mark { display: inline-grid; place-items: center; flex: none; width: 12px; height: 12px; color: var(--text-2); font: 700 9px / 12px var(--sans); }
+.dp-mark[data-state='done'] { color: var(--teal); }
+.dp-mark[data-state='failed'] { border-radius: 50%; background: var(--status-error); color: var(--ink); }
+.dp-mark[data-state='unknown'] { border-radius: 50%; border: 1px solid var(--muted); color: var(--text-2); font-size: 8px; line-height: 10px; }
+.dp-square { width: 8px; height: 8px; border-radius: 2px; background: var(--muted); }
+/* the teal dot breathes while the task runs; still under reduced motion */
+.dp-pulse { animation: dp-pulse 1600ms var(--ease-draw) infinite; }
+@keyframes dp-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .dp-pulse { animation: none; }
+}
+
+/* one line: the state and the time stay whole, the description is what gets the ellipsis */
+.dp-text { display: flex; min-width: 0; white-space: nowrap; }
+.dp-before, .dp-after { flex: none; white-space: pre; }
+.dp-desc { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dp-status[data-state='failed'] { color: var(--status-error); }
+.dp-status .dp-text { flex: 1; }
+
+/* side panel: one line per dispatch, indented under the department row */
+.dp-list { list-style: none; margin: 0 0 var(--sp-2); padding: 0 var(--sp-3) 0 calc(var(--sp-3) + 24px + var(--sp-3)); display: flex; flex-direction: column; gap: var(--sp-1); }
+.dp-row { display: flex; align-items: center; gap: 6px; min-height: var(--lh-meta); color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.dp-row[data-state='failed'] { color: var(--status-error); }
+.dp-row .dp-text { flex: 1; }

@@ -1,0 +1,193 @@
+/* Side panel (5.8 to 5.11), waiting cards (5.9), prerequisites and welcome (5.14), loading placeholders (7). */
+
+/* ---------- welcome and prerequisites (5.14) ---------- */
+.welcome, .prereqs { width: min(520px, calc(100% - 48px)); margin: 14vh auto 0; display: flex; flex-direction: column; gap: var(--sp-4); align-items: flex-start; }
+.welcome h1, .prereqs h1 { font: 600 var(--fs-display) / var(--lh-display) var(--sans); }
+.welcome p, .prereqs > p { font-size: var(--fs-ui); line-height: var(--lh-ui); }
+.welcome-mark { margin-bottom: var(--sp-4); }
+.checklist { list-style: none; padding: 0; margin: var(--sp-4) 0 0; width: 100%; display: flex; flex-direction: column; gap: var(--sp-3); }
+.checklist li { display: flex; gap: var(--sp-4); align-items: flex-start; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-l); padding: var(--sp-4); }
+.check-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.check-actions { display: flex; gap: var(--sp-3); }
+.check-state { margin-top: var(--sp-1); font-size: var(--fs-meta); line-height: var(--lh-meta); color: var(--text-2); }
+.check-state.done { color: var(--status-ok); }
+.check-state.action { color: var(--status-degraded); }
+.check-state.failed { color: var(--status-error); }
+.checklist .btn { flex: none; }
+/* The 20 px status mark: a disc with an ink glyph (done, needs your action, failed), the teal spinner, or a ring. */
+.mark20 { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 20px; height: 20px; border-radius: 50%; color: var(--ink); font: 700 12px / 1 var(--sans); }
+.mark20.done { background: var(--status-ok); }
+.mark20.action { background: var(--status-degraded); }
+.mark20.failed { background: var(--status-error); }
+.mark20.waiting { border: 2px solid var(--connector); }
+.mark20 .lg { width: 16px; height: 16px; }
+.mark20.pop { animation: coa-pop var(--dur-panel) var(--ease-pop); }
+
+/* ---------- loading an org (7): static placeholders, no shimmer ---------- */
+.ph-thread { width: 100%; max-width: var(--w-column); margin: 0 auto; padding: var(--sp-7); display: flex; flex-direction: column; gap: var(--sp-5); }
+.ph-bar { display: block; height: 14px; background: var(--bg-raised); border-radius: var(--r-s); }
+.ph-card { display: block; flex: none; height: 64px; background: var(--bg-raised); border-radius: var(--r-l); }
+
+/* ---------- the panel shell: hides and shows with the top bar toggle (5.8) ---------- */
+/* Hide: the content fades out (120 ms), then the width goes to 0 (240 ms). Show: the width opens, then the content fades in. */
+.panel-shell {
+  flex: none; width: 300px; overflow: hidden;
+  transition: width var(--dur-panel) var(--ease-move), visibility 0s;
+}
+.panel-shell[data-hidden='true'] {
+  width: 0; visibility: hidden;
+  transition: width var(--dur-panel) var(--ease-move) var(--dur-fast), visibility 0s linear calc(var(--dur-panel) + var(--dur-fast));
+}
+.side-panel {
+  width: 300px; height: 100%; overflow-y: auto; padding: var(--sp-2) var(--sp-4) var(--sp-5); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  opacity: 1; transition: opacity var(--fade-fast) var(--ease-draw) var(--dur-panel);
+}
+.panel-shell[data-hidden='true'] .side-panel { opacity: 0; transition-delay: 0s; }
+.panel-section { flex: none; }
+.panel-toggle { position: relative; }
+
+/* section header (5.8) */
+.section-title { margin: 0; }
+.section-title.has-action { display: flex; align-items: center; gap: var(--sp-2); }
+.section-title.has-action .section-head { flex: 1; min-width: 0; width: auto; }
+.section-head {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; padding: 0 var(--sp-2); border: 0; border-radius: var(--r-s);
+  background: none; color: var(--text-2); cursor: pointer; text-align: left;
+  font: 600 var(--fs-label) / var(--lh-label) var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  transition: background-color var(--dur-fast) var(--ease-draw);
+}
+.section-head:hover { background: var(--bg-hover); }
+.section-head:active { background: var(--bg-press); }
+.section-head.you .section-name { color: var(--violet); }
+.section-head .count { font: 400 var(--fs-meta) / var(--lh-meta) var(--sans); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.count-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill); background: var(--violet); color: var(--ink); text-align: center;
+  font: 700 var(--fs-label) / 18px var(--sans); letter-spacing: 0; font-variant-numeric: tabular-nums; animation: coa-pop var(--dur-panel) var(--ease-pop);
+}
+.chev { flex: none; color: var(--text-2); transition: transform var(--dur-fast) var(--ease-move); }
+.chev.open { transform: rotate(90deg); }
+.group-head { margin: var(--sp-3) 0 var(--sp-2); font-size: var(--fs-meta); line-height: var(--lh-meta); font-weight: 600; color: var(--text-2); }
+.group-head:first-child { margin-top: var(--sp-2); }
+.group-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: var(--h-control-s); padding: 0 var(--sp-2); border: 0; border-radius: var(--r-s);
+  background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; transition: background-color var(--dur-fast) var(--ease-draw);
+}
+.group-toggle:hover { background: var(--bg-hover); }
+.panel-empty { display: flex; align-items: center; gap: 6px; padding: var(--sp-2) var(--sp-2) var(--sp-3); }
+.panel-empty .ok-check { color: var(--status-ok); flex: none; }
+
+/* cards (5.9, 5.11) */
+.item { position: relative; overflow: hidden; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-l); padding: 10px var(--sp-4); }
+.item.initiative { margin-bottom: var(--sp-3); }
+.item.unparsed { margin-bottom: var(--sp-3); overflow-wrap: anywhere; }
+.item-title { font-weight: 500; overflow-wrap: anywhere; }
+.item.waiting:not(.neutral) { box-shadow: inset 3px 0 0 var(--violet); }
+.card-slot { display: grid; grid-template-rows: 1fr; }
+.card-slot-inner { min-height: 0; overflow: hidden; padding-bottom: var(--sp-3); }
+.card-slot[data-leaving='true'] {
+  grid-template-rows: 0fr; opacity: 0; pointer-events: none;
+  transition: opacity var(--fade-fast) var(--ease-exit), grid-template-rows var(--dur-fold) var(--ease-move) var(--fade-fast);
+}
+.w-head { display: flex; align-items: center; gap: 6px; min-height: 18px; font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.w-head .code { font-size: var(--fs-meta); color: var(--text-2); }
+.w-head .age { margin-left: auto; color: var(--text-2); white-space: nowrap; }
+.chip.kind { color: var(--violet); background: var(--wash-violet); border-color: transparent; }
+.chip.high { color: var(--status-degraded); background: var(--chip-degraded); border-color: transparent; }
+.w-status { margin: 4px 0 0; overflow-wrap: anywhere; }
+.w-actions-wrap { margin-top: 10px; }
+.w-actions { display: flex; flex-wrap: wrap; gap: 6px; animation: coa-fade-in var(--fade-fast) var(--ease-draw); }
+.w-more { padding-top: 6px; }
+.option-wrap { max-width: 100%; }
+.btn.option { max-width: 100%; }
+.btn.option .option-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.w-pending { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--h-control-s); margin-top: 10px; animation: coa-fade-in var(--fade-fast) var(--ease-draw); }
+/* Shrinks from full width to 0 in the 4 s of the undo window, linear. */
+.undo-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--violet); animation: coa-undo 4s linear forwards; }
+@keyframes coa-undo { from { width: 100%; } to { width: 0; } }
+
+/* clamped text and "Show more" (5.10) */
+.clamp-wrap { margin-top: 6px; }
+.clamp-text { overflow: hidden; overflow-wrap: anywhere; transition: max-height var(--dur-fold) var(--ease-move); }
+.clamp-text.clamp { display: -webkit-box; -webkit-box-orient: vertical; }
+.clamp-text.clamp.lines-3 { -webkit-line-clamp: 3; line-clamp: 3; }
+.clamp-text.clamp.lines-2 { -webkit-line-clamp: 2; line-clamp: 2; }
+.clamp-text.cut.clamp { cursor: pointer; }
+.show-more { display: block; margin-top: var(--sp-2); padding: 0; background: none; border: 0; color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); cursor: pointer; }
+.show-more:hover { color: var(--text); }
+
+/* initiatives (5.11): the actions appear on hover and keyboard focus; the confirm row slides open */
+.i-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--h-control-s); }
+.i-meta > span:first-child { white-space: nowrap; }
+.i-actions { display: flex; gap: 6px; opacity: 0; transition: opacity var(--fade-fast) var(--ease-draw); }
+.item.initiative:hover .i-actions, .item.initiative:focus-within .i-actions, .item.initiative.confirming .i-actions { opacity: 1; }
+/* "Initiatives": the explainer under the header, the title as a button, the goal on one line, the stale marker with its always-visible button */
+.panel-explainer { margin: 0 var(--sp-2) var(--sp-3); color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.i-title {
+  display: block; max-width: 100%; padding: 0; border: 0; border-radius: var(--r-xs); background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere;
+}
+.i-title:hover { text-decoration: underline; text-underline-offset: 2px; }
+.i-goal { margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.i-stale { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-1) var(--sp-3); min-height: var(--h-control-s); }
+.i-stale .btn.quiet { margin-left: -10px; }
+.i-stale-text { color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+/* The status page of an initiative in a dialog: wider than a question dialog, the text scrolls inside the box. */
+.modal:has(.iv-head) { width: 640px; gap: var(--sp-3); }
+.iv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+.iv-head h2 { min-width: 0; overflow-wrap: anywhere; }
+.iv-body > h1:first-child { display: none; } /* the page's own title is the dialog's heading */
+.iv-body { font-size: var(--fs-body); line-height: var(--lh-body); overflow-wrap: anywhere; }
+.confirm { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-3); }
+.confirm .row { margin-top: 0; }
+
+/* departments (5.11): a 36 px row with an initials tile; "Recent chats" under it */
+.dept { margin-bottom: var(--sp-2); }
+.dept-row { display: flex; align-items: center; gap: var(--sp-3); height: 36px; padding: 0 var(--sp-3); border-radius: var(--r-m); transition: background-color var(--dur-fast) var(--ease-draw); }
+.dept-row:hover { background: var(--bg-hover); }
+.dept-tile { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: var(--r-s); background: var(--bg-raised); color: var(--text); font: 600 var(--fs-label) / 1 var(--sans); }
+/* The chart's tile (28 px, ink fill, 1 px line). The glyph colour comes from app-look.yaml and nothing else uses it. */
+.dept-tile.chart { width: 28px; height: 28px; background: var(--bg); border: 1px solid var(--line); }
+.dept-tile[data-colour='blue'] { color: var(--dept-blue); }
+.dept-tile[data-colour='pink'] { color: var(--dept-pink); }
+.dept-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dept-chat { margin-left: auto; }
+
+/* ---------- follow-ups: health popover, reply chip without a code, options as text, hints ---------- */
+.popover-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.popover-rules { border-top: 1px solid var(--line); padding-top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.popover-rules p { margin: 0; }
+.rules-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3); }
+.rules-count { min-width: 0; }  /* the actions wrap under the text rather than squeeze it */
+.rules-actions { display: flex; gap: var(--sp-2); flex: none; margin-left: auto; }
+.popover-rules .auto-confirm { margin-top: 0; }
+.rules-groups { display: flex; flex-direction: column; gap: var(--sp-3); }
+.rules-group { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+/* One line per rule, cut with an ellipsis; the full text is the tooltip (`title`). */
+.popover .rules-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.rules-list li { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rules-list code { white-space: nowrap; }
+.popover-sub { margin: 0; font: 600 var(--fs-meta) / var(--lh-meta) var(--sans); color: var(--text-2); }
+.reply-label { flex: none; color: var(--violet); font-weight: 600; }
+.panel-hint { margin: calc(var(--sp-2) * -1) var(--sp-2) var(--sp-3); color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.w-options { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); color: var(--text); font-size: var(--fs-ui); line-height: var(--lh-ui); overflow-wrap: anywhere; }
+/* 16 px below the last row: the column gap is 12 px, plus 4 px. */
+.prereqs-foot { align-self: stretch; display: flex; justify-content: flex-end; margin-top: var(--sp-2); }
+
+/* parent and child items: the child count under a parent, the children nested under a rail */
+.w-group { margin-top: var(--sp-3); }
+.w-group .group-toggle { color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); margin-left: calc(-1 * var(--sp-2)); width: calc(100% + var(--sp-2)); }
+.w-children { margin-left: var(--sp-2); padding: var(--sp-2) 0 0 var(--sp-3); border-left: 1px solid var(--line); }
+.w-children .card-slot-inner { padding-bottom: var(--sp-3); }
+.w-children .item { background: var(--bg); }
+/* Contextual tip: the last box of the panel, under Departments; in the flow, like the other sections. */
+.section-head.static { cursor: default; }
+.section-head.static:hover, .section-head.static:active { background: none; }
+.tip-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-1); margin: 0 var(--sp-2) var(--sp-3); font-size: var(--fs-meta); line-height: var(--lh-meta); color: var(--text); }
+.tip-use { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.tip-use:hover { text-decoration: underline; text-underline-offset: 2px; }
+.tip-actions { display: flex; gap: var(--sp-3); }
+.tip-dismiss,
+.tip-next { padding: 0; border: 0; background: none; color: var(--text-2); font: inherit; cursor: pointer; }
+.tip-dismiss:hover,
+.tip-next:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }

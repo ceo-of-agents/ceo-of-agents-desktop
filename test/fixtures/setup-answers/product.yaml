@@ -1,0 +1,101 @@
+# Sample answers: purpose product (one product the CEO builds), company level.
+# Departments: all four ways. Repos: one public and unprotected, one private, protected and
+# planned (not created yet). Roadmap board. Attribution: Claude Code default.
+# Validate: python3 scripts/ci/check_setup_answers.py --file examples/setup-answers/product.yaml
+schema: setup-answers/1
+language:
+  chat: en
+  files: en
+org:
+  purpose: product
+  level: company
+  id: ACME
+  name: Acme
+services: no
+ceo:
+  profile: technical
+about:
+  what: |
+    - A mobile app that helps small shops plan their week
+    - For shop owners with fewer than ten employees
+  why: Shop owners lose hours every week to planning on paper.
+  stage: building
+departments:
+  # Way 1: the catalog entry as it is.
+  - from: catalog
+    id: engineering
+  # Way 2: a catalog entry with changes.
+  - from: catalog
+    id: legal
+    changes:
+      scope_add:
+        - Review of app store terms
+      never:
+        - item: Contacting app store reviewers
+          owner: ceo
+      abilities_drop:
+        - WebFetch
+  # Way 3: a department from scratch.
+  - from: custom
+    id: support
+    role: Customer support
+    purpose: Answer shop owners and keep a list of recurring questions.
+    scope:
+      - Replies to incoming support email
+      - A list of the most frequent questions
+    triggers:
+      - A shop owner writes in
+      - A question comes up more than twice
+    exclusions:
+      - item: Refunds and payments
+        owner: ceo
+    core_job: Keep shop owners answered and turn repeated questions into help pages.
+  # Way 4: an agent the CEO already has, used as it is.
+  - from: own
+    id: reviewer
+    name: some-plugin:reviewer
+    kind: agent
+    location: the plugin some-plugin
+    purpose: Review pull requests for style and risk.
+    use_when:
+      - A pull request is ready for review
+    must_not:
+      - item: Merging pull requests
+        owner: ceo
+    replaces: none
+names:
+  cos: Chief of staff
+  ceo: later
+  departments:
+    engineering: Max
+    legal: Legal
+    support: Sam
+    reviewer: Reviewer
+gates: accept
+models:
+  cos: opus
+  departments: opus
+  overrides:
+    support: sonnet
+  top_workers:
+    - engineering
+policy: none
+remote:
+  hq: https://github.com/acme/acme-hq.git
+repos:
+  - slug: acme/acme-app
+    role: code
+    visibility: public
+    protected: false
+    exists: true
+  - slug: acme/acme-site
+    role: site
+    visibility: private
+    protected: true
+    exists: false
+issues_home: acme/acme-app
+roadmap:
+  url: https://github.com/orgs/acme/projects/1
+  status_field: Status
+attribution: default
+enable_plugin: true

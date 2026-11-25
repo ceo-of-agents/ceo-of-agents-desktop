@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" role="img" aria-labelledby="icon16-title icon16-desc">
+  <title id="icon16-title">CEO of Agents app icon, 16 px</title>
+  <desc id="icon16-desc">Pixel-fitted form of the app icon for the 16 x 16 px export only (icon_16x16.png). 32 px and up stay rendered from the master, icon.svg. Same parts as the master, none added or removed: violet node (you), connector stem, teal node (chief of staff), three connector branches, three teal commit rings with ink centres on the teal hq line. Changes for 16 px: every part snapped to whole pixels on a vertical axis at x 7.5; nodes and rings 3 px; strokes 1 px; the three branches drawn as one 1 px row (row 9, columns 3-11) that ends straight above each ring's top-centre pixel (the master's curves run mostly sideways and are under 0.4 px wide at this size); the master's rim (0.1 px here), drop shadow (0.2 px) and line tails (0.4 px) are dropped because they cannot be drawn at 16 px. Body 13 x 13 px at (1, 1), radius 3, the master's surface-into-ink fade. Colours: ink, surface, connector, teal, violet only . Render at exactly 16 x 16, never downsampled from a larger size.</desc>
+  <defs>
+    <!-- Depth: surface fading into ink, as on the master. -->
+    <linearGradient id="icon16-body-fade" x1="0" y1="1" x2="0" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+
+  <g id="background">
+    <!-- 13 px body = the master's 824/1024 of 16 px (12.9), radius 185.4/824 x 13 = 2.9 -> 3. -->
+    <rect x="1" y="1" width="13" height="13" rx="3" ry="3" fill="url(#icon16-body-fade)"/>
+  </g>
+
+  <!-- Pixel grid (rows and columns are whole pixels): margin row 1; you rows 2-4; stem row 5; chief of staff rows 6-8; branches row 9; commits rows 10-12; margin row 13. Columns 2-12, margins 1 and 13. -->
+  <g id="tree">
+    <!-- You, the CEO (violet): 3 px dot. violet on surface 5.38:1, on ink 6.56:1. -->
+    <circle id="you" cx="7.5" cy="3.5" r="1.5" fill="#A78BFA"/>
+    <!-- Connectors (connector grey, 3.07:1 on surface, 3.75:1 on ink). -->
+    <g id="connectors" fill="#64748B">
+      <rect id="stem" x="7" y="5" width="1" height="1"/>
+      <!-- Branches, row 9: each ends directly above its ring's top-centre pixel (columns 3, 7, 11, row 10), so all three commits hang off the chief of staff. -->
+      <rect id="branch-left" x="3" y="9" width="4" height="1"/>
+      <rect id="branch-centre" x="7" y="9" width="1" height="1"/>
+      <rect id="branch-right" x="8" y="9" width="4" height="1"/>
+    </g>
+    <!-- Chief of staff (teal): 3 px dot. -->
+    <circle id="cos" cx="7.5" cy="7.5" r="1.5" fill="#2DD4BF"/>
+    <!-- hq git line: the 1 px segments between the rings, on the rings' middle row. -->
+    <g id="hq-line" fill="#2DD4BF">
+      <rect x="5" y="11" width="1" height="1"/>
+      <rect x="9" y="11" width="1" height="1"/>
+    </g>
+    <!-- Commits: 3 px rings, 1 px teal stroke, 1 px ink centre, as on the master. -->
+    <g id="commits" fill="#0F172A" stroke="#2DD4BF" stroke-width="1">
+      <rect x="2.5" y="10.5" width="2" height="2" rx="0.75" ry="0.75"/>
+      <rect x="6.5" y="10.5" width="2" height="2" rx="0.75" ry="0.75"/>
+      <rect x="10.5" y="10.5" width="2" height="2" rx="0.75" ry="0.75"/>
+    </g>
+  </g>
+</svg>

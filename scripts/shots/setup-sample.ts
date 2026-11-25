@@ -1,0 +1,43 @@
+// A realistic sample of the plugin's catalog and approval gates (public plugin text, plugin v0.19.0), for the mock API.
+import type { SetupData } from '../../src/shared/setup';
+
+export const SETUP_DATA_SAMPLE: SetupData = {
+  pluginVersion: '0.19.0',
+  catalog: [
+    { id: 'engineering', role: 'Engineering', purpose: "Own the org's code, CI, releases and security posture, and turn approved product work into reviewed pull requests.", advisory: false, personalOnly: false },
+    { id: 'design-brand', role: 'Design and brand', purpose: "Own the org's identity, assets and voice rules, and review visible work against them.", advisory: false, personalOnly: false },
+    { id: 'business', role: 'Business', purpose: 'Find out whether and how the org becomes sustainable, and keep positioning evidence-based.', advisory: false, personalOnly: false },
+    { id: 'growth-social', role: 'Growth and social', purpose: "Plan and draft the org's public communication so the CEO can publish it in minutes.", advisory: false, personalOnly: false },
+    { id: 'legal', role: 'Legal', purpose: 'Spot legal risk early and explain it plainly, with options, so the CEO can decide or hire a professional.', advisory: true, personalOnly: false },
+    { id: 'finance', role: 'Finance and accounting', purpose: 'Keep an honest, sourced view of cash, costs and invoices so the CEO can decide and pay by hand.', advisory: true, personalOnly: false },
+    { id: 'tax', role: 'Tax', purpose: "Keep the org's tax position and deadlines visible so nothing is missed and a professional gets clean inputs.", advisory: true, personalOnly: false },
+    { id: 'operations', role: 'Operations', purpose: "Keep the org's admin in order: vendors, tools, subscriptions and recurring obligations.", advisory: false, personalOnly: false },
+    { id: 'health', role: 'Health', purpose: "Keep the CEO's health records, appointments and questions in order, and prepare each visit, so the CEO and their doctors decide.", advisory: true, personalOnly: true },
+    { id: 'money', role: 'Money', purpose: 'Give the CEO a clear view of personal money (accounts, bills, budget, savings and deadlines) so the CEO and their advisers decide.', advisory: true, personalOnly: true },
+    { id: 'paperwork', role: 'Paperwork', purpose: "Keep the CEO's documents, contracts and renewals in order, and prepare each form, so nothing important expires or is missed.", advisory: true, personalOnly: true },
+  ],
+  gates: [
+    { id: 'issues-and-labels', tier: 'free', meaning: 'Create, edit or close issues, GitHub Project items and their fields (such as status), labels and milestones', example: 'open an issue for a bug found in review and add it to the roadmap', locked: false },
+    { id: 'comments', tier: 'free', meaning: 'Comment on issues, PRs and tracker items', example: 'reply to a pull request with review notes', locked: false },
+    { id: 'drafts', tier: 'free', meaning: 'Prepare drafts of documents, posts, emails or messages without sending or publishing them', example: 'draft a launch post without posting it', locked: false },
+    { id: 'open-pr', tier: 'free', meaning: 'Open a pull request (the review and merge are the gate)', example: 'propose a code change for you to review', locked: false },
+    { id: 'research', tier: 'free', meaning: 'Read, search and analyze; no side effects outside hq', example: "compare three competitors' pricing pages", locked: false },
+    { id: 'hq-write', tier: 'free', meaning: "Edit files in the org's hq working tree (committing is `hq-commit`)", example: 'update the notes in this hq', locked: false },
+    { id: 'push-non-deploy-branch', tier: 'notice', meaning: 'Push a branch that does not trigger a deploy or publish', example: 'push a work-in-progress branch that publishes nothing', locked: false },
+    { id: 'hq-commit', tier: 'notice', meaning: 'The CoS commits and pushes to the hq main branch', example: "save today's decisions in this hq's history and sync it", locked: false },
+    { id: 'dispatch-pushing-department', tier: 'notice', meaning: 'Start a department that will push code or content', example: 'hand a fix to a department that will push it to a branch', locked: false },
+    { id: 'merge', tier: 'ok', meaning: 'Merge a pull request into a default or protected branch', example: 'merge a reviewed pull request into main', locked: false },
+    { id: 'deploy', tier: 'ok', meaning: 'Release or promote to an environment, including a push that itself deploys or publishes', example: 'release a new version of the app', locked: false },
+    { id: 'publish', tier: 'ok', meaning: 'Make anything public: posts, pages, packages, assets, announcements', example: 'post on social media or put a page online', locked: false },
+    { id: 'contact-people', tier: 'ok', meaning: 'Send any message to a person or organization outside the org', example: 'email a customer or a supplier', locked: false },
+    { id: 'spend-money', tier: 'ok', meaning: 'Commit funds: purchases, subscriptions, paid promotion', example: 'buy a subscription', locked: false },
+    { id: 'rotate-secrets', tier: 'ok', meaning: 'Rotate or revoke credentials and keys', example: 'replace an API key', locked: false },
+    { id: 'delete-data', tier: 'ok', meaning: 'Delete or irreversibly change data, repos, branches of record', example: 'delete a repository or a database table', locked: false },
+    { id: 'org-or-repo-settings', tier: 'ok', meaning: 'Change organization, repository, account or security settings', example: 'change who can access a repository', locked: false },
+    { id: 'change-brand-rules', tier: 'ok', meaning: 'Change the identity, palette, typeface or voice rules', example: 'change the logo colours or the tone of voice', locked: false },
+    { id: 'change-policy-rules', tier: 'ok', meaning: "Change gates, policies or charters' approval rules", example: 'change this approval table', locked: false },
+    { id: 'file-or-sign', tier: 'ok', meaning: 'File, sign, accept or submit anything legally or officially binding', example: 'sign a contract or submit a tax return', locked: true },
+    { id: 'make-payment', tier: 'ok', meaning: 'Pay, transfer or authorize a payment', example: 'pay an invoice', locked: true },
+  ],
+  tiers: ['opus', 'sonnet', 'haiku'],
+};

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>CEO of Agents app icon</title>
+  <desc>App icon master, 1024 x 1024, macOS icon grid</desc>
+  <defs>
+    <!-- Depth: surface fading into ink (identity 1.2 allows in-between shades only as a fade into ink). -->
+    <linearGradient id="body-fade" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <!-- macOS grid drop shadow, in ink. -->
+    <filter id="grid-shadow" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <g id="background">
+    <rect x="100" y="100" width="824" height="824" rx="185.4" ry="185.4" fill="url(#body-fade)" filter="url(#grid-shadow)"/>
+    <!-- Line border (identity 1.2), scaled up so it survives at Dock size. -->
+    <rect x="103" y="103" width="818" height="818" rx="182.4" ry="182.4" fill="none" stroke="#334155" stroke-width="6"/>
+  </g>
+
+  <g id="tree" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Connectors: you to chief of staff, chief of staff to the three commits. -->
+    <g id="connectors" stroke="#64748B" stroke-width="24">
+      <path d="M512 362 L512 434"/>
+      <path d="M512 558 C512 636 312 612 312 688"/>
+      <path d="M512 558 L512 688"/>
+      <path d="M512 558 C512 636 712 612 712 688"/>
+    </g>
+    <!-- hq git line. -->
+    <path id="hq-line" d="M232 736 L792 736" stroke="#2DD4BF" stroke-width="24"/>
+    <!-- Commits on the hq line: ink-filled rings. -->
+    <g id="commits" fill="#0F172A" stroke="#2DD4BF" stroke-width="24">
+      <circle cx="312" cy="736" r="44"/>
+      <circle cx="512" cy="736" r="44"/>
+      <circle cx="712" cy="736" r="44"/>
+    </g>
+    <!-- Chief of staff: the system at work (teal). -->
+    <circle id="cos" cx="512" cy="496" r="62" fill="#2DD4BF"/>
+    <!-- You, the CEO (violet). -->
+    <circle id="you" cx="512" cy="300" r="62" fill="#A78BFA"/>
+  </g>
+</svg>

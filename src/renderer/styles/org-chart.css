@@ -1,0 +1,108 @@
+/* The org chart (org chart spec): spine, tree and grid of 200 x 72 nodes, edges as one SVG, worker chips, legend, plates.
+   Positions come from the layout function (org-chart-layout.ts) as inline transforms; motion only through the tokens. */
+
+/* the chart as a view in place of the thread: a quiet back button above it */
+.oc-view { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: coa-fade-in var(--fade-fast) var(--ease-draw); }
+.oc-back { flex: none; padding: var(--sp-3) var(--sp-5) 0; }
+.org-chart { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; padding: var(--sp-8) var(--sp-7) var(--sp-7); }
+.oc-chart { position: relative; margin: 0 auto; }
+.oc-chart:focus { outline: none; }
+.oc-loading { margin: var(--sp-8) auto 0; text-align: center; }
+
+/* edges: 2 px connector lines, rounded corners in the path; worker links 1 px dashed (4 on, 3 off) */
+.oc-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.oc-edge { fill: none; stroke: var(--connector); stroke-width: 2; transition: d var(--dur-panel) var(--ease-move); animation: coa-fade-in var(--fade) var(--ease-draw); }
+.oc-edge.dashed { stroke-width: 1; stroke-dasharray: 4 3; }
+
+/* nodes: the wrapper is positioned (transform) and takes the focus ring; the body draws the card */
+.oc-node {
+  position: absolute; left: 0; top: 0; z-index: 1; width: 200px; height: 72px; border-radius: var(--r-l); cursor: pointer;
+  transition: transform var(--dur-panel) var(--ease-move);
+}
+.oc-node[data-inert='true'] { cursor: default; }
+/* an open menu lies over the chip row under its node */
+.oc-node[data-menu-open='true'] { z-index: 2; }
+.oc-body {
+  position: relative; display: flex; align-items: center; gap: 10px; height: 100%; padding: 10px 12px;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-l);
+  transition: border-color var(--dur-fast) var(--ease-draw), transform var(--dur-press) var(--ease-draw);
+}
+.oc-node:hover .oc-body { border-color: var(--connector); }
+.oc-node:active:not([data-inert='true']) .oc-body { transform: scale(var(--scale-press)); }
+.oc-node[data-enter='true'] .oc-body { animation: oc-appear var(--dur-panel) var(--ease-pop) both; }
+/* chips carry a transform for their place, so they only fade in */
+.oc-chips[data-enter='true'] { animation: coa-fade-in var(--dur-panel) var(--ease-draw) both; }
+.oc-node[data-leaving='true'] .oc-body { animation: coa-leave var(--fade-fast) var(--ease-exit) forwards; }
+.oc-node[data-leaving='true'] { pointer-events: none; }
+@keyframes oc-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes oc-appear { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+}
+
+.oc-avatar { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; color: var(--ink); font: 600 var(--fs-ui) / 1 var(--sans); }
+.oc-avatar.ceo { background: var(--violet); }
+.oc-avatar.cos { background: var(--teal); }
+.oc-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.oc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font: 600 var(--fs-ui) / var(--lh-ui) var(--sans); }
+.has-menu .oc-name { padding-right: 18px; }
+.oc-sub { display: flex; justify-content: space-between; gap: var(--sp-3); min-height: var(--lh-meta); color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.oc-role { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-model { flex: none; font-variant-numeric: tabular-nums; }
+.oc-status { display: flex; align-items: center; gap: 6px; min-height: var(--lh-meta); color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); white-space: nowrap; animation: coa-fade-in var(--fade-fast) var(--ease-draw); }
+.oc-status > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.oc-status.you { color: var(--violet); }
+.oc-mark { display: inline-grid; place-items: center; flex: none; width: 12px; height: 12px; }
+.oc-mark.bang { border-radius: 50%; background: var(--status-degraded); color: var(--ink); font: 700 9px / 12px var(--sans); }
+.oc-mark.handoff { color: var(--teal); }
+
+/* the node menu button: top right on line 1, shown on hover and while focus is inside */
+.oc-menu-btn { position: absolute; top: 6px; right: 6px; opacity: 0; transition: opacity var(--fade-fast) var(--ease-draw), background-color var(--dur-fast) var(--ease-draw), color var(--dur-fast) var(--ease-draw); }
+.oc-node:hover .oc-menu-btn, .oc-node:focus-within .oc-menu-btn, .oc-menu-btn[aria-expanded='true'] { opacity: 1; }
+.icon-btn.s24 { width: var(--h-control-s); height: var(--h-control-s); border-radius: var(--r-s); }
+
+/* the node menu popover (RS 5.12), inside the node: right-aligned, 8 px below it */
+.popover.oc-menu { width: 224px; padding: var(--sp-3); gap: 2px; }
+.oc-menu-list { display: contents; }
+.oc-menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); width: 100%; height: var(--h-control); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-s);
+  background: none; color: var(--text); font: 400 var(--fs-ui) / var(--lh-ui) var(--sans); text-align: left; cursor: pointer; white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease-draw);
+}
+.oc-menu-item:hover { background: var(--bg-hover); }
+.oc-menu-item:active { background: var(--bg-press); }
+.oc-menu-item .muted { overflow: hidden; text-overflow: ellipsis; }
+
+/* worker chips: 18 px pills (the .chip look) and the model after them; one line, inside the node's column (org-chart-chips.ts decides what fits) */
+.oc-chips { position: absolute; left: 0; top: 0; z-index: 1; width: max-content; display: flex; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: var(--sp-2) 6px; transition: transform var(--dur-panel) var(--ease-move); }
+.oc-chips[data-leaving='true'] { animation: coa-leave var(--fade-fast) var(--ease-exit) forwards; }
+.oc-chips.cos { flex-direction: column; align-items: flex-start; flex-wrap: nowrap; overflow: visible; gap: var(--sp-2); }
+.oc-chips .chip { flex: none; }
+.oc-chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2) 6px; }
+.oc-chip-model { color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); white-space: nowrap; }
+.oc-measure { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; }
+.oc-measure .oc-chips { position: static; transform: none; transition: none; }
+
+/* placeholder for "no departments yet", and the room for "+ Add department" */
+.oc-empty, .oc-add { position: absolute; left: 0; top: 0; width: 200px; border: 1px dashed var(--connector); border-radius: var(--r-l); transition: transform var(--dur-panel) var(--ease-move); }
+.oc-empty { display: flex; flex-direction: column; gap: 2px; min-height: 72px; padding: 10px 12px; color: var(--text-2); }
+.oc-empty-title { font: 500 var(--fs-ui) / var(--lh-ui) var(--sans); }
+.oc-empty-body { font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.oc-add { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); height: 72px; background: none; color: var(--text-2); font: 400 var(--fs-ui) / var(--lh-ui) var(--sans); cursor: pointer; }
+.oc-add:hover { border-color: var(--muted); color: var(--text); }
+
+/* legend: 32 px under the last row; its left edge is the chart's leftmost element (inline margin from the layout) */
+.oc-legend { display: flex; flex-direction: column; gap: var(--sp-2); margin: var(--sp-8) 0 0; padding: 0; list-style: none; color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.oc-legend li { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.oc-sample { display: grid; place-items: center; flex: none; width: 16px; height: var(--lh-meta); }
+.oc-sample.line::before { content: ''; width: 16px; height: 2px; background: var(--connector); }
+.oc-sample.handoff { color: var(--teal); }
+.oc-sample.pill::before { content: ''; box-sizing: border-box; display: block; width: 16px; height: 10px; border: 1px dashed var(--connector); border-radius: 5px; }
+.oc-legend .noicon { padding-left: 24px; }
+
+/* plates: the error plate of RS 7, centred 32 px from the top (first load) or pinned above the last good chart */
+.oc-plate { max-width: 560px; margin: 0 auto; align-items: flex-start; }
+.oc-plate .err-mark { margin-top: 2px; }
+.oc-plate .plate-text { display: flex; flex-direction: column; gap: 2px; }
+.oc-plate .detail { color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.oc-plate.stale { position: sticky; top: 0; z-index: 3; margin-bottom: var(--sp-7); background: linear-gradient(var(--wash-error), var(--wash-error)), var(--bg); }
+.tt-mono { font-family: var(--mono); }

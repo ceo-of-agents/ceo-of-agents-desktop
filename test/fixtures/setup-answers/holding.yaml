@@ -1,0 +1,50 @@
+# Sample answers: purpose company, level holding (the CEO as entrepreneur across their orgs).
+# A holding has no repos, no roadmap and no policy of its own; it has a policies repo, written
+# to the path below with the ceilings it sets. Deferred: the attribution answer.
+# Validate: python3 scripts/ci/check_setup_answers.py --file examples/setup-answers/holding.yaml
+schema: setup-answers/1
+language:
+  chat: en
+  files: en
+org:
+  purpose: company
+  level: holding
+  id: ACMEHQ
+  name: Acme Holding
+services: no
+ceo:
+  profile: non-technical
+about:
+  what: |
+    - I want my companies to give me time for family
+    - I want a steady income from them
+  why: A clear portfolio of companies, each with the same basic rules.
+  stage: starting
+departments:
+  - from: catalog
+    id: legal
+  - from: catalog
+    id: tax
+names:
+  cos: Chief of staff
+  ceo: later
+  departments:
+    legal: Legal
+    tax: Tax
+gates:
+  stricter:
+    comments: notice
+models:
+  cos: opus
+  departments: opus
+remote:
+  hq: none
+policies_repo:
+  path: /home/me/acme/policies
+  remote: none
+  ceiling:
+    cos: opus
+    departments: opus
+    workers: sonnet
+attribution: later
+enable_plugin: true
