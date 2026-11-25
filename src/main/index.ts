@@ -128,6 +128,19 @@ async function main(): Promise<void> {
   void appUpdate.check();
   setInterval(() => void appUpdate.check(), 60 * 60 * 1000).unref();
 
+  // The menu's "Check for Updates…": forced check, the result in a native dialog on the main window.
+  const checkForUpdatesDialog = async (): Promise<void> => {
+    const show = (opts: Electron.MessageBoxOptions) => (win && !win.isDestroyed() ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts));
+    const r = await appUpdate.checkNow();
+    if (r.kind === 'upToDate') await show({ type: 'info', message: t('appUpdate.check.upToDate'), detail: t('appUpdate.check.upToDateDetail', { current: r.current }) });
+    else if (r.kind === 'available') {
+      const a = await show({ type: 'info', message: t('appUpdate.check.available', { latest: r.latest }), detail: t('appUpdate.check.availableDetail', { current: r.current }), buttons: [t('appUpdate.check.update'), t('appUpdate.check.later')], defaultId: 0, cancelId: 1, noLink: true });
+      if (a.response === 0) void appUpdate.update();
+    } else if (r.kind === 'failed') await show({ type: 'warning', message: t('appUpdate.check.failed'), detail: r.reason });
+    else if (r.kind === 'dev') await show({ type: 'info', message: t('appUpdate.check.dev') });
+    else await show({ type: 'info', message: t('appUpdate.check.busy') });
+  };
+
   registerIpc({ win: () => win, orgs, broker, emit, guard: runGuard, setup, setWaitingFocusAvailable, appUpdate });
 
   win = new BrowserWindow({
@@ -155,7 +168,7 @@ async function main(): Promise<void> {
   // Links never open inside the app.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  setAppMenu(emit);
+  setAppMenu(emit, () => void checkForUpdatesDialog());
   await orgs.init();
   await win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 

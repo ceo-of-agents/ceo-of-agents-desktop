@@ -200,6 +200,7 @@
   "menu.orgChart": "Org Chart",
   "menu.closeTab": "Close Tab",
   "menu.view": "View",
+  "menu.checkForUpdates": "Check for Updates…",
   "menu.focusWaiting": "Waiting on you: focus view",
   "thread.noReply": "The turn ended without a reply.",
   "activity.summary": "{count} steps · {time}",
@@ -1255,5 +1256,18 @@
   "appUpdate.err.bundleId": "The downloaded app is not this app: nothing was replaced.",
   "appUpdate.err.version": "The downloaded app is not version {version}: nothing was replaced.",
   "appUpdate.err.copy": "Could not copy the new version.",
-  "appUpdate.err.signature": "The new version failed its signature check: nothing was replaced."
+  "appUpdate.err.signature": "The new version failed its signature check: nothing was replaced.",
+  "appUpdate.check.upToDate": "You're up to date",
+  "appUpdate.check.upToDateDetail": "CEO of Agents {current} is the latest version.",
+  "appUpdate.check.available": "Version {latest} is available",
+  "appUpdate.check.availableDetail": "You have {current}.",
+  "appUpdate.check.update": "Update",
+  "appUpdate.check.later": "Later",
+  "appUpdate.check.failed": "Could not check for updates",
+  "appUpdate.check.dev": "Updates are checked only in the packaged app.",
+  "appUpdate.check.busy": "An update is already in progress.",
+  "appUpdate.check.err.ghMissing": "GitHub CLI (gh) was not found. Install it and sign in with `gh auth login`.",
+  "appUpdate.check.err.notSignedIn": "GitHub CLI is not signed in. Run `gh auth login`, then try again.",
+  "appUpdate.check.err.network": "Could not reach GitHub. Check your connection and try again.",
+  "appUpdate.check.err.noRelease": "No release with a Mac download was found."
 }

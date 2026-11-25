@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppUpdater, INSTALL_SCRIPT, assetName, fetchLatestApp, helperArgs, isNewer, parseRelease, resolveBundle, stageUpdate, type BundleFs, type StageFs } from '../../src/main/system/app-update';
+import { AppUpdater, INSTALL_SCRIPT, assetName, classifyRelease, fetchLatestApp, helperArgs, isNewer, parseRelease, resolveBundle, stageUpdate, type BundleFs, type StageFs } from '../../src/main/system/app-update';
 import type { Runner } from '../../src/main/system/exec';
 import type { AppUpdateStatus } from '../../src/shared/types';
 import { fail, mockRunner, ok } from './helpers';
@@ -41,6 +41,19 @@ describe('fetchLatestApp', () => {
     expect(await fetchLatestApp(async () => ({ code: null, stdout: '', stderr: '', error: 'spawn gh ENOENT' }))).toBeNull();
     expect(await fetchLatestApp(async () => fail('not logged in'))).toBeNull();
     expect(await fetchLatestApp(async () => { throw new Error('x'); })).toBeNull();
+  });
+});
+
+describe('classifyRelease', () => {
+  it('sorts each way gh release view can end', () => {
+    expect(classifyRelease(ok(release('v1.2.3', [assetName('1.2.3')])))).toEqual({ kind: 'release', release: { version: '1.2.3', tag: 'v1.2.3' } });
+    expect(classifyRelease(ok(release('v1.2.3', [])))).toEqual({ kind: 'noRelease' });
+    expect(classifyRelease(ok('garbage'))).toEqual({ kind: 'noRelease' });
+    expect(classifyRelease({ code: null, stdout: '', stderr: '', error: 'spawn gh ENOENT' })).toEqual({ kind: 'ghMissing' });
+    expect(classifyRelease(fail('To get started with GitHub CLI, please run:  gh auth login'))).toEqual({ kind: 'notSignedIn' });
+    expect(classifyRelease(fail('HTTP 401: Bad credentials'))).toEqual({ kind: 'notSignedIn' });
+    expect(classifyRelease(fail('dial tcp: lookup api.github.com: no such host'))).toEqual({ kind: 'failed' });
+    expect(classifyRelease({ code: null, stdout: '', stderr: '', error: 'timeout' })).toEqual({ kind: 'failed' });
   });
 });
 
@@ -293,6 +306,45 @@ describe('AppUpdater', () => {
     m.tick(3_600_001);
     await m.u.check();
     expect(m.calls).toHaveLength(3);
+  });
+  describe('checkNow', () => {
+    it('says up to date or available, and always asks GitHub (skips the cache)', async () => {
+      const a = make({ latest: '0.1.0' });
+      expect(await a.u.checkNow()).toEqual({ kind: 'upToDate', current: '0.1.0' });
+      expect(await a.u.checkNow()).toEqual({ kind: 'upToDate', current: '0.1.0' });
+      expect(a.calls).toHaveLength(2);
+      const b = make();
+      await b.u.check();
+      expect(await b.u.checkNow()).toEqual({ kind: 'available', current: '0.1.0', latest: '0.2.0' });
+      expect(b.calls).toHaveLength(2);
+      expect(b.u.status().state).toBe('available');
+      expect(b.events.at(-1)?.state).toBe('available');
+    });
+    it('reports why a check failed', async () => {
+      const mk = (r: ReturnType<typeof fail>) => {
+        const events: AppUpdateStatus[] = [];
+        const u = new AppUpdater({ packaged: true, version: '0.1.0', execPath: '/A.app/x', pid: 1, emit: (s) => events.push(s), requestQuit: async () => true, runner: async () => r });
+        return u;
+      };
+      expect(await mk({ code: null, stdout: '', stderr: '', error: 'spawn gh ENOENT' }).checkNow()).toEqual({ kind: 'failed', reason: expect.stringContaining('was not found') });
+      expect(await mk(fail('run gh auth login')).checkNow()).toEqual({ kind: 'failed', reason: expect.stringContaining('not signed in') });
+      expect(await mk(fail('boom')).checkNow()).toEqual({ kind: 'failed', reason: expect.stringContaining('Could not reach GitHub') });
+      expect(await mk(ok('null')).checkNow()).toEqual({ kind: 'failed', reason: expect.stringContaining('No release') });
+    });
+    it('does nothing in a dev build and says busy while an update is staged', async () => {
+      const d = make({ packaged: false });
+      expect(await d.u.checkNow()).toEqual({ kind: 'dev' });
+      expect(d.calls).toHaveLength(0);
+      const m = make({ realTmp: true, quit: async () => false });
+      await m.u.check();
+      await m.u.update();
+      const tmpDir = m.calls.find((c) => c.cmd === 'gh' && c.args[1] === 'download')?.args.at(-1) as string;
+      expect(m.u.status().state).toBe('ready');
+      const before = m.calls.length;
+      expect(await m.u.checkNow()).toEqual({ kind: 'busy' });
+      expect(m.calls).toHaveLength(before);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
   });
   it('stays idle on the same or an older release', async () => {
     expect((await make({ latest: '0.1.0' }).u.check()).state).toBe('idle');

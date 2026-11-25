@@ -1,12 +1,24 @@
 // The application menu. Cmd+W closes the selected department tab (the renderer decides), so the window's own
 // close moves to Cmd+Shift+W. Cmd+Shift+O toggles the Org chart view (it is not a tab), View > Waiting on you: focus view (Cmd+Shift+F) opens the focus view of the waiting items (enabled only when something waits), Cmd+, opens Settings. Chat > New Session (Cmd+Shift+N) asks for a new chief of staff session. The Edit menu is needed for copy and paste.
-import { Menu, type MenuItemConstructorOptions } from 'electron';
+import { app, Menu, type MenuItemConstructorOptions } from 'electron';
 import { t } from '../shared/strings';
 import type { AppEvent } from '../shared/types';
 
-export function buildMenuTemplate(emit: (e: AppEvent) => void, isMac = process.platform === 'darwin', focusAvailable = false): MenuItemConstructorOptions[] {
+export function buildMenuTemplate(
+  emit: (e: AppEvent) => void,
+  isMac = process.platform === 'darwin',
+  focusAvailable = false,
+  onCheckForUpdates: () => void = () => undefined,
+): MenuItemConstructorOptions[] {
   const template: MenuItemConstructorOptions[] = [];
-  if (isMac) template.push({ role: 'appMenu' });
+  const checkItem: MenuItemConstructorOptions = { label: t('menu.checkForUpdates'), click: () => onCheckForUpdates() };
+  // The app menu is spelled out (not `role: 'appMenu'`) to add "Check for Updates…" after About; Quit stays the quit role (app.quit, which `before-quit` in index.ts routes through the usual quit path).
+  if (isMac) {
+    template.push({
+      label: app.name,
+      submenu: [{ role: 'about' }, checkItem, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+    });
+  }
   template.push(
     {
       label: t('menu.file'),
@@ -42,18 +54,21 @@ export function buildMenuTemplate(emit: (e: AppEvent) => void, isMac = process.p
       submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close', accelerator: 'CmdOrCtrl+Shift+W' }],
     },
   );
+  if (!isMac) template.push({ role: 'help', submenu: [checkItem] });
   return template;
 }
 
 let emitter: ((e: AppEvent) => void) | null = null;
 let focusAvailable = false;
+let checkHandler: () => void = () => undefined;
 
 const rebuild = () => {
-  if (emitter) Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate(emitter, process.platform === 'darwin', focusAvailable)));
+  if (emitter) Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate(emitter, process.platform === 'darwin', focusAvailable, checkHandler)));
 };
 
-export function setAppMenu(emit: (e: AppEvent) => void): void {
+export function setAppMenu(emit: (e: AppEvent) => void, onCheckForUpdates: () => void = () => undefined): void {
   emitter = emit;
+  checkHandler = onCheckForUpdates;
   rebuild();
 }
 
