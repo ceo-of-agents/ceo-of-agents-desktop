@@ -30,6 +30,11 @@
 
 Nothing important happens without your OK: your org's approval rules still apply, and the top bar shows at a glance whether your hq is in sync.
 
+## See it in action
+
+https://github.com/user-attachments/assets/cf888fe1-a718-4663-a71d-be61ef01f2c1
+
+
 ## Install
 
 1. **[Download CEO of Agents](https://github.com/ceo-of-agents/ceo-of-agents-desktop/releases/latest)** (`CEO-of-Agents-<version>.dmg`).
