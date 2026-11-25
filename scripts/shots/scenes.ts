@@ -1642,7 +1642,7 @@ export function buildScenes(): Scene[] {
       '| --- | --- | --- |',
       '| Welcome screen | Max | In review |',
       '| Copy check | Lena | Done |',
-      '| Hosting plan | You | Waiting (ACME-D3) |',
+      '| Launch announcement | You | Waiting (ACME-D3) |',
       '',
       'Two things need you: the login fix to merge (ACME-A2) and the launch announcement (ACME-D3).',
     ].join('\n');
