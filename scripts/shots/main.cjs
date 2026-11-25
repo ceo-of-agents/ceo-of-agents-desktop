@@ -4,13 +4,19 @@
 //   SHOTS_DIST    folder with the built app (dist/) and the harness bundles (dist/shots/)
 //   SHOTS_SCENES  comma-separated scene names (empty: all)
 //   REDUCED=1     emulate prefers-reduced-motion: reduce (files get a "-reduced" suffix)
-const { app, BrowserWindow } = require('electron');
+//   SHOTS_SCALE   device scale factor (default 1; the shared media screenshots use 2). An offscreen window ignores the
+//                 Chromium scale switch, so a scale above 1 is set with the DevTools device metrics override and the
+//                 frames are taken with Page.captureScreenshot (see grab).
+//   SHOTS_FRAMES=1  scenes with a `record` setting write raw frames (15 fps) instead of one PNG; see recordScene
+//   (the encoder that turns them into GIF and MP4 is encode.mjs)
+const { app, BrowserWindow, nativeImage } = require('electron');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
 app.dock?.hide();
-app.commandLine.appendSwitch('force-device-scale-factor', '1');
+const SCALE = Number(process.env.SHOTS_SCALE || '1');
+if (!(SCALE >= 1 && SCALE <= 3)) throw new Error('SHOTS_SCALE must be a number from 1 to 3');
 if (process.env.SHOTS_DISABLE_GPU !== '0') app.commandLine.appendSwitch('disable-gpu');
 
 const WIDTH = 1280;
@@ -23,6 +29,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const out = process.env.SHOTS;
 const dist = process.env.SHOTS_DIST;
 const reduced = process.env.REDUCED === '1';
+const framesMode = process.env.SHOTS_FRAMES === '1';
 
 // A throwaway profile: the harness never touches the real app data (or its localStorage).
 app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'coa-shots-')));
@@ -51,7 +58,14 @@ const waitForScript = (selector) => `(async () => {
 })()`;
 
 /** Runs in the renderer: sends one AppEvent through the mock's `emit`. */
-const emitScript = (event) => `(() => { window.coa.emit(${JSON.stringify(event)}); return true; })()`;
+const emitScript = (event) => {
+  // A string '@now' or '@now-<ms>' in the event becomes that time (ISO) at the moment the step runs.
+  const json = JSON.stringify(event, (_k, v) => {
+    const m = typeof v === 'string' ? /^@now(?:-(\d+))?$/.exec(v) : null;
+    return m ? new Date(Date.now() - Number(m[1] || 0)).toISOString() : v;
+  });
+  return `(() => { window.coa.emit(${json}); return true; })()`;
+};
 
 const scrollScript = (c) => `(() => { const e = document.querySelector(${JSON.stringify(c.selector)}); if (!e) throw new Error('not found: ' + ${JSON.stringify(c.selector)}); e.scrollTop = ${c.to === 'bottom' ? 'e.scrollHeight' : '0'}; return true; })()`;
 
@@ -158,12 +172,36 @@ async function pressKey(wc, keyCode) {
   await sleep(80);
 }
 
+/**
+ * An offscreen window draws no mouse pointer. A scene with a `record` setting gets a drawn one (an arrow in a fixed,
+ * click-through element) that glides to wherever `hover` and `click` steps go, so a recorded sequence shows where the user acts.
+ */
+const cursorInstallScript = (x, y) => `(() => {
+  if (document.getElementById('shots-cursor')) return true;
+  const el = document.createElement('div');
+  el.id = 'shots-cursor';
+  el.style.cssText = 'position:fixed;left:0;top:0;width:20px;height:28px;z-index:2147483647;pointer-events:none;transform:translate(${x}px,${y}px);transition:transform 450ms cubic-bezier(.4,0,.2,1);';
+  el.innerHTML = '<svg width="20" height="28" viewBox="0 0 20 28" xmlns="http://www.w3.org/2000/svg"><path id="shots-cursor-arrow" d="M2 2 L2 22 L7 17.5 L10.5 25.5 L13.5 24.2 L10 16.3 L16.5 16.3 Z" fill="#fff" stroke="#0F172A" stroke-width="1.6" stroke-linejoin="round" style="transform-origin:2px 2px;transition:transform 120ms"/></svg>';
+  document.body.appendChild(el);
+  return true;
+})()`;
+const cursorMoveScript = (x, y) => `(() => { const e = document.getElementById('shots-cursor'); if (e) e.style.transform = 'translate(${x}px,${y}px)'; return true; })()`;
+const cursorPressScript = `(() => { const a = document.getElementById('shots-cursor-arrow'); if (a) { a.style.transform = 'scale(.82)'; setTimeout(() => { a.style.transform = ''; }, 160); } return true; })()`;
+
 /** Moves the real mouse over an element (hover styles need it, a script cannot set :hover). */
 async function hoverOver(wc, c) {
   const { x, y } = await wc.executeJavaScript(centreScript(c));
+  wc.executeJavaScript(cursorMoveScript(x, y)).catch(() => undefined);
   wc.sendInputEvent({ type: 'mouseMove', x: x - 3, y: y - 3 });
   await sleep(60);
   wc.sendInputEvent({ type: 'mouseMove', x, y });
+}
+
+/** One frame of the window as a NativeImage, at SCALE device pixels per CSS pixel (capturePage always returns 1x). */
+async function grab(wc) {
+  if (SCALE === 1) return wc.capturePage();
+  const shot = await wc.debugger.sendCommand('Page.captureScreenshot', { format: 'png' });
+  return nativeImage.createFromBuffer(Buffer.from(shot.data, 'base64'));
 }
 
 function isBlank(image) {
@@ -173,6 +211,71 @@ function isBlank(image) {
     if (buf[i] !== buf[0] || buf[i + 1] !== buf[1] || buf[i + 2] !== buf[2]) return false;
   }
   return true;
+}
+
+/** Runs one scene step in the page (see the Step type in scenes.ts). */
+async function runStep(wc, step) {
+  if (step.click) {
+    wc.executeJavaScript(cursorPressScript).catch(() => undefined);
+    await wc.executeJavaScript(clickScript(step.click));
+  }
+  else if (step.scroll) await wc.executeJavaScript(scrollScript(step.scroll));
+  else if (step.emit) await wc.executeJavaScript(emitScript(step.emit));
+  else if (step.waitFor) await wc.executeJavaScript(waitForScript(step.waitFor));
+  else if (step.focus) await focusByTab(wc, step.focus);
+  else if (step.hover) await hoverOver(wc, step.hover);
+  else if (step.press) await pressKey(wc, step.press);
+  else if (step.select) await wc.executeJavaScript(selectScript(step.select));
+  else if (step.files) await wc.executeJavaScript(filesScript(step.files));
+  else if (step.type) await wc.executeJavaScript(typeScript(step.type));
+  else if (step.wait) await sleep(step.wait);
+}
+
+/** Plays a scene's timeline in real time: each step starts at its `at` (ms after t0, the first frame). */
+async function playTimeline(wc, timeline, t0) {
+  for (const { at, step } of [...timeline].sort((a, b) => a.at - b.at)) {
+    const wait = t0 + at - Date.now();
+    if (wait > 0) await sleep(wait);
+    await runStep(wc, step);
+  }
+}
+
+/**
+ * Records a scene with a `record` setting: frames are captured as fast as the offscreen window allows while the timeline
+ * plays, stored raw (BGRA), then one frame is picked for every tick of `fps` (the latest one captured at or before the tick).
+ * Writes <out>/<name>.frames/<n>.bgra and <out>/<name>.frames/frames.json (size, fps, the frame index of every output frame).
+ */
+async function recordScene(wc, scene, width, height) {
+  const dir = path.join(out, `${scene.name}.frames`);
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const { fps, durationMs } = scene.record;
+  const stamps = [];
+  const t0 = Date.now();
+  let stop = false;
+  const capture = (async () => {
+    while (!stop) {
+      const at = Date.now() - t0;
+      const image = await grab(wc);
+      const size = image.getSize();
+      if (size.width !== width || size.height !== height) throw new Error(`unexpected frame size ${size.width}x${size.height}`);
+      fs.writeFileSync(path.join(dir, `${stamps.length}.bgra`), image.toBitmap());
+      stamps.push(at);
+    }
+  })();
+  const play = playTimeline(wc, scene.timeline ?? [], t0);
+  await sleep(durationMs);
+  stop = true;
+  await Promise.all([capture, play]);
+  const sequence = [];
+  for (let k = 0; k * (1000 / fps) < durationMs; k++) {
+    const tick = k * (1000 / fps);
+    let pick = 0;
+    for (let i = 0; i < stamps.length; i++) if (stamps[i] <= tick) pick = i;
+    sequence.push(pick);
+  }
+  fs.writeFileSync(path.join(dir, 'frames.json'), JSON.stringify({ width, height, fps, sequence, captured: stamps.length }));
+  return dir;
 }
 
 async function shoot(scene) {
@@ -196,24 +299,34 @@ async function shoot(scene) {
       if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
       await wc.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     }
-    await sleep(BOOT_MS);
-    for (const step of scene.steps) {
-      if (step.click) await wc.executeJavaScript(clickScript(step.click));
-      else if (step.scroll) await wc.executeJavaScript(scrollScript(step.scroll));
-      else if (step.emit) await wc.executeJavaScript(emitScript(step.emit));
-      else if (step.waitFor) await wc.executeJavaScript(waitForScript(step.waitFor));
-      else if (step.focus) await focusByTab(wc, step.focus);
-      else if (step.hover) await hoverOver(wc, step.hover);
-      else if (step.press) await pressKey(wc, step.press);
-      else if (step.select) await wc.executeJavaScript(selectScript(step.select));
-      else if (step.files) await wc.executeJavaScript(filesScript(step.files));
-      else if (step.type) await wc.executeJavaScript(typeScript(step.type));
-      else if (step.wait) await sleep(step.wait);
+    if (SCALE > 1) {
+      if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
+      await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', { width: scene.width ?? WIDTH, height: scene.height ?? HEIGHT, deviceScaleFactor: SCALE, mobile: false });
     }
-    await sleep(scene.settleMs ?? SETTLE_MS);
-    const image = await wc.capturePage();
+    await sleep(BOOT_MS);
+    if (scene.record) await wc.executeJavaScript(cursorInstallScript(...(scene.record.cursorStart ?? [1260, 800])));
+    const width = scene.width ?? WIDTH;
+    const height = scene.height ?? HEIGHT;
+    for (const step of scene.steps) await runStep(wc, step);
+    // A scene with a `record` setting: the first state is what the sequence starts from, the timeline plays in real time.
+    if (scene.record && framesMode) {
+      const dir = await recordScene(wc, scene, Math.round(width * SCALE), Math.round(height * SCALE));
+      if (errors.length) console.warn(`  renderer errors in ${scene.name}: ${errors.join(' | ')}`);
+      return dir;
+    }
+    if (scene.record) {
+      // Not recording: a PNG of the first state (<name>-first.png) and, after the timeline, of the last (<name>.png).
+      const first = await grab(wc);
+      fs.writeFileSync(path.join(out, `${scene.name}-first.png`), first.toPNG());
+      const t0 = Date.now();
+      await playTimeline(wc, scene.timeline ?? [], t0);
+      await sleep(Math.max(0, t0 + scene.record.durationMs - Date.now()));
+    } else {
+      await sleep(scene.settleMs ?? SETTLE_MS);
+    }
+    const image = await grab(wc);
     const size = image.getSize();
-    if (size.width !== (scene.width ?? WIDTH) || size.height !== (scene.height ?? HEIGHT)) throw new Error(`unexpected size ${size.width}x${size.height}`);
+    if (size.width !== Math.round(width * SCALE) || size.height !== Math.round(height * SCALE)) throw new Error(`unexpected size ${size.width}x${size.height}`);
     if (isBlank(image)) throw new Error('blank image (one colour)');
     // The shell never scrolls: the document must be exactly the window's height in every scene.
     const doc = await wc.executeJavaScript('({ scroll: document.scrollingElement.scrollHeight, inner: innerHeight })');

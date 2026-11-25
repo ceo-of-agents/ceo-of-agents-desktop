@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="sp-title sp-desc">
+  <title id="sp-title">ceo-of-agents, a Mac app for Claude Code</title>
+  <desc id="sp-desc">You're the CEO. Your agents are the company. Chat, approvals and org chart in one window.</desc>
+  <rect x="0" y="0" width="1280" height="640" fill="#0F172A"/>
+  <rect x="0.5" y="0.5" width="1279" height="639" fill="none" stroke="#334155" stroke-width="1"/>
+
+  <rect id="chip" x="96" y="154" width="398" height="44" rx="8" fill="none" stroke="#2DD4BF" stroke-width="2"/>
+  <g font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text id="chip-text" x="114" y="184" font-size="22" font-weight="600" letter-spacing="2.64" fill="#2DD4BF">MAC APP FOR CLAUDE CODE</text>
+    <text id="wordmark" x="96" y="282" font-size="76" font-weight="700" fill="#F8FAFC">ceo-of-agents</text>
+  </g>
+  <g font-family="'Inter', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text id="tag1" x="96" y="364" font-size="44" font-weight="600" fill="#F8FAFC">You're the CEO.</text>
+    <text id="tag2" x="96" y="417" font-size="44" font-weight="600" fill="#2DD4BF">Your agents are the company.</text>
+    <text id="sub" x="96" y="480" font-size="26" font-weight="400" fill="#94A3B8">Chat, approvals and org chart in one window.</text>
+  </g>
+
+  <!-- Mark from logo-mark-dark.svg, geometry unchanged, uniform scale 0.4966 -->
+  <g id="mark" transform="translate(878 175) scale(0.4966) translate(-220 -223)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#64748B" stroke-width="24">
+      <path d="M512 362 L512 434"/>
+      <path d="M512 558 C512 636 312 612 312 688"/>
+      <path d="M512 558 L512 688"/>
+      <path d="M512 558 C512 636 712 612 712 688"/>
+    </g>
+    <g stroke="#2DD4BF" stroke-width="24">
+      <path d="M232 736 L266 736"/>
+      <path d="M358 736 L466 736"/>
+      <path d="M558 736 L666 736"/>
+      <path d="M758 736 L792 736"/>
+    </g>
+    <g stroke="#2DD4BF" stroke-width="24">
+      <circle cx="312" cy="736" r="44"/>
+      <circle cx="512" cy="736" r="44"/>
+      <circle cx="712" cy="736" r="44"/>
+    </g>
+    <circle cx="512" cy="496" r="62" fill="#2DD4BF" stroke="none"/>
+    <circle cx="512" cy="300" r="62" fill="#A78BFA" stroke="none"/>
+  </g>
+</svg>

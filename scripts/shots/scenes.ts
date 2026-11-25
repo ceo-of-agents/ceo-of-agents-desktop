@@ -124,6 +124,14 @@ export interface Scene {
   /** Window size in px (default 1280 x 820). */
   width?: number;
   height?: number;
+  /**
+   * A timed sequence (the animated media). `steps` run first and set the first state; then `timeline` plays in real time,
+   * each step at `at` ms after the first frame, for `durationMs`. With SHOTS_FRAMES=1 the harness writes raw frames at `fps`
+   * (see main.cjs, recordScene); without it, the last state is captured as one PNG, as for any scene.
+   * A drawn mouse pointer glides to the targets of `hover` and `click` steps; `cursorStart` is where it begins (CSS px).
+   */
+  record?: { fps: number; durationMs: number; cursorStart?: [number, number] };
+  timeline?: Array<{ at: number; step: Step }>;
 }
 
 // ---------- building blocks ----------
@@ -1577,6 +1585,208 @@ export function buildScenes(): Scene[] {
         { emit: run({}, false, { error: 'The plugin reported invalid answers: departments[0].id must be kebab-case (see /Users/me/Orgs/acme-hq/org.yaml).' }) },
         { waitFor: '.co-verbatim' },
       ],
+    });
+  }
+
+
+  // ---------- the shared media set (docs/media): 1440 x 900 CSS px, sample org only ----------
+  // README of this folder, "Media set". Names: orgs ACME, BOLT, KITE; Ada, Max, Lena; codes ACME-*.
+  {
+    const MEDIA = { width: 1440, height: 900 } as const;
+    const bolt = orgSummary('bolt', 'BOLT');
+    const kiteOrg = orgSummary('kite', 'KITE');
+    const usage: PlanUsage = {
+      status: 'allowed', limitType: 'five_hour', resetsAt: new Date(Date.now() + 125 * MIN).toISOString(), at: new Date().toISOString(),
+      windows: [
+        { key: 'five_hour', utilization: 0.18, resetsAt: new Date(Date.now() + 125 * MIN).toISOString(), status: 'allowed' },
+        { key: 'seven_day', utilization: 0.42, resetsAt: new Date(Date.now() + 76 * 3_600_000).toISOString(), status: 'allowed' },
+      ],
+    };
+    /** ACME selected, BOLT and KITE below it in the rail, two usage chips, hq health green. */
+    const mediaState = (info: ThreadInfo, patch: Partial<SceneState> = {}, viewPatch: Partial<OrgView> = {}): SceneState => {
+      const b = base(info, patch, viewPatch);
+      return {
+        ...b,
+        orgs: [b.orgs[0], bolt, kiteOrg],
+        views: { ...b.views, bolt: emptyView(bolt), kite: emptyView(kiteOrg) },
+        tabs: { ...b.tabs, bolt: [], kite: [] },
+        usage,
+      };
+    };
+    const a2: WaitingEntry = { code: 'ACME-A2', kind: 'A', urgency: 'normal', action: 'ok', escalate: false, since: dayStr(1), text: 'Merge the login fix: pull request #12 on acme/app.' };
+    const d3: WaitingEntry = {
+      code: 'ACME-D3', kind: 'D', urgency: 'high', action: 'decide', escalate: false, since: dayStr(2),
+      text: 'How should we announce the launch?',
+      options: [{ key: 'a', label: 'Announce on launch day' }, { key: 'b', label: 'Announce a week later' }, { key: 'c', label: 'Skip the announcement' }],
+      card: {
+        context: 'The login fix and the welcome screen ship together this week.\n\n- A launch-day post reaches the most people.\n- A week later gives the docs time to catch up.\n- Skipping it keeps the release quiet.',
+        options: [
+          { key: 'a', label: 'Announce on launch day, with a short demo and the changelog' },
+          { key: 'b', label: 'Announce a week later, once the docs are updated' },
+          { key: 'c', label: 'Skip the announcement and update the README only' },
+        ],
+        recommendation: '(a): the demo is ready and the docs update is small.\n\nRevisit if the release slips.',
+        proposedBy: 'Max',
+        escalate: false,
+      },
+    };
+    const a4: WaitingEntry = { code: 'ACME-A4', kind: 'A', urgency: 'low', action: 'do', escalate: false, since: dayStr(0), parent: 'ACME-D3', text: 'Send the invite list to the first ten testers.' };
+    const mediaInitiatives: Initiative[] = [
+      initiative('onboarding-flow', 'Onboarding flow for new orgs', 'active', 1, 'Max opens the PR for the welcome screen'),
+      initiative('brand-refresh', 'Brand refresh', 'active', 3, 'Lena shares the new palette for review'),
+    ];
+    const mediaReply = [
+      'Here is where things stand on the **onboarding flow**:',
+      '',
+      '| Item | Owner | Status |',
+      '| --- | --- | --- |',
+      '| Welcome screen | Max | In review |',
+      '| Copy check | Lena | Done |',
+      '| Launch announcement | You | Waiting (ACME-D3) |',
+      '',
+      'Two things need you: the login fix to merge (ACME-A2) and the launch announcement (ACME-D3).',
+    ].join('\n');
+    const mediaTurn: ThreadEntry[] = [finishedTurn[0], finishedTurn[1], entry('e3', 'assistant', mediaReply, 29 * MIN + 1000)];
+    const expandGroup: Step[] = [{ click: { selector: sel.groupToggle } }, { wait: 500 }];
+
+    // M1: the main window, idle, side panel open.
+    scenes.push({
+      name: 'media-hero', ...MEDIA,
+      state: mediaState(cosThread({ entries: mediaTurn }), {}, { departments, waiting: [a2, d3, a4], initiatives: mediaInitiatives }),
+      steps: expandGroup,
+    });
+
+    // M2: the focus view on the decision (the first of three slides is the decision: it is the high-urgency item).
+    scenes.push({
+      name: 'media-focus-view', ...MEDIA,
+      state: mediaState(cosThread({ entries: mediaTurn }), {}, { departments, waiting: [d3, a4, a2], initiatives: mediaInitiatives }),
+      steps: [{ click: { selector: sel.focusOpen } }, { waitFor: sel.focusSheet }, { wait: 500 }],
+    });
+
+    // M3: a running turn waiting on a permission card.
+    scenes.push({
+      name: 'media-permission', ...MEDIA,
+      state: mediaState(
+        cosThread({
+          entries: [...mediaTurn, entry('e4', 'user', 'Push the welcome screen branch to GitHub.', 2 * MIN)], busy: true,
+          activity: { startedAt: ago(42_000), current: 'Sending to GitHub', steps: 3 },
+        }),
+        {}, { departments, waiting: [a2, d3, a4], initiatives: mediaInitiatives },
+      ),
+      events: [permissionRequest],
+      steps: [{ waitFor: sel.permissionCard }, { wait: 400 }],
+    });
+
+    // M4: the org chart, Max working, Lena and Nora idle, one handoff waiting for Ada.
+    const nora = chartDept('legal', 'nora', 'Nora', { workers: [], look: lookOf('scale', 'neutral') });
+    const chartDepts: Department[] = [...departments, { id: 'legal', agent: 'nora', persona: 'Nora', role: 'Legal' }];
+    scenes.push({
+      name: 'media-org-chart', ...MEDIA,
+      state: mediaState(
+        cosThread({ entries: mediaTurn, handoffsWaiting: 1 }),
+        {
+          charts: { [ORG]: { chart: chartOf([max, lena, nora]), live: noLive } },
+          tabs: { [ORG]: [tab('t1', 'max', 'Max', 'Engineering')], bolt: [], kite: [] },
+          threads: {
+            [`${ORG}|cos`]: cosThread({ entries: mediaTurn, handoffsWaiting: 1 }),
+            [`${ORG}|tab:t1`]: tabThread('t1', 'Max', 'Engineering', { busy: true, activity: { startedAt: ago(75_000), current: 'Running the tests', steps: 6 } }),
+          },
+        },
+        { departments: chartDepts, waiting: [a2, d3, a4], initiatives: mediaInitiatives },
+      ),
+      steps: [{ click: { selector: sel.chartToggle } }, { waitFor: sel.orgChart }, { wait: 700 }],
+    });
+
+    // M5: a chat with Max, the chief of staff tab beside it, Hand over enabled.
+    const maxReply = [
+      'Fixed. The button on the login page said `Sing in`; it now reads `Sign in`:',
+      '',
+      '```diff',
+      '- <button>Sing in</button>',
+      '+ <button>Sign in</button>',
+      '```',
+      '',
+      'The tests pass. Say when you want to hand this over.',
+    ].join('\n');
+    scenes.push({
+      name: 'media-department-chat', ...MEDIA,
+      state: mediaState(
+        cosThread({ entries: mediaTurn }),
+        {
+          tabs: { [ORG]: [tab('t1', 'max', 'Max', 'Engineering', { pendingWork: true, openedAt: ago(12 * MIN) })], bolt: [], kite: [] },
+          threads: {
+            [`${ORG}|cos`]: cosThread({ entries: mediaTurn }),
+            [`${ORG}|tab:t1`]: tabThread('t1', 'Max', 'Engineering', {
+              entries: [
+                entry('m1', 'user', 'Fix the typo on the login page.', 6 * MIN),
+                entry('m2', 'assistant', maxReply, 4 * MIN, { author: 'Max' }),
+              ],
+            }),
+          },
+        },
+        { departments, waiting: [a2, d3, a4], initiatives: mediaInitiatives },
+      ),
+      steps: [{ click: { selector: sel.tab, text: 'Max', index: 0 } }, { waitFor: sel.headButton }, { wait: 500 }],
+    });
+
+    // M6: "Create a new org", first question.
+    scenes.push({ ...scenes.find((x) => x.name === 'create-step')!, name: 'media-create-org', ...MEDIA });
+
+    // G1: approve ACME-A2 with undo. The item leaves when the chief of staff has acted: here, an org-view event at 6.0 s.
+    const approveState = mediaState(cosThread({ entries: mediaTurn }), {}, { departments, waiting: [a2, d3, a4], initiatives: mediaInitiatives });
+    const acmeOrg = approveState.orgs[0];
+    const afterApprove: OrgView = { ...approveState.views[ORG], waiting: [d3, a4], org: { ...acmeOrg, waitingCount: 2 } };
+    scenes.push({
+      name: 'media-approve', ...MEDIA,
+      state: approveState,
+      steps: expandGroup,
+      record: { fps: 15, durationMs: 7500, cursorStart: [1240, 640] },
+      timeline: [
+        { at: 800, step: { hover: { selector: '.item.waiting', text: 'ACME-A2' } } },
+        { at: 1500, step: { hover: { selector: '.item.waiting .btn.you', text: 'Approve' } } },
+        { at: 2000, step: { click: { selector: '.item.waiting .btn.you', text: 'Approve' } } },
+        { at: 6000, step: { emit: { type: 'orgs', orgs: [{ ...acmeOrg, waitingCount: 2 }, bolt, kiteOrg], activeOrgId: ORG } } },
+        { at: 6000, step: { emit: { type: 'org-view', orgId: ORG, view: afterApprove } } },
+        { at: 6400, step: { hover: { selector: sel.threadBody } } },
+      ],
+    });
+
+    // G2: ask the chief of staff to route a task to engineering. Driven by mock events.
+    const ask = 'Ask engineering to fix the typo on the login page';
+    const reply = ["Sent to engineering. ", "I'll tell you when it's done."].join('').split(' ');
+    // Times that must be "now" when the step runs (not when the scenes are built) are written '@now' (see emitScript in main.cjs).
+    const NOW = '@now';
+    const d1 = (state: Dispatch['state'], endedAt: string | null, startedAt = NOW): Dispatch => ({
+      id: 'g2', agent: 'max', departmentId: 'engineering', name: 'Max', description: 'Fix the typo on the login page', background: true, state,
+      startedAt, lastActivityAt: NOW, endedAt,
+    });
+    const cosState = (busy: boolean, handoffsWaiting: number, activity: ThreadInfo['activity']): AppEvent => ({
+      type: 'thread-state', state: { orgId: ORG, threadId: 'cos', busy, handoffsWaiting, activity },
+    });
+    const dispatchTimeline: Array<{ at: number; step: Step }> = [];
+    for (let i = 1; i <= ask.length; i++) dispatchTimeline.push({ at: 500 + Math.round((i * 2000) / ask.length) - 41, step: { type: { selector: sel.composer, value: ask.slice(0, i) } } });
+    dispatchTimeline.push(
+      { at: 2500, step: { click: { selector: '.composer button.send' } } },
+      { at: 2520, step: { emit: { type: 'thread-entry', orgId: ORG, threadId: 'cos', entry: entry('g2-u', 'user', ask + '.', 0, { time: NOW }) } } },
+      { at: 2540, step: { emit: cosState(true, 0, { startedAt: NOW, current: 'Reading state.md', steps: 1 }) } },
+      { at: 3500, step: { emit: cosState(true, 0, { startedAt: '@now-1000', current: 'Sending to engineering', steps: 2 }) } },
+      { at: 4500, step: { emit: { type: 'dispatches', orgId: ORG, dispatches: [d1('running', null)] } } },
+      { at: 4500, step: { emit: cosState(true, 0, { startedAt: '@now-2000', current: 'Writing the reply', steps: 3 }) } },
+    );
+    reply.forEach((w, i) => dispatchTimeline.push({ at: 4600 + Math.round((i * 3300) / reply.length), step: { emit: { type: 'thread-delta', orgId: ORG, threadId: 'cos', text: (i ? ' ' : '') + w } } }));
+    dispatchTimeline.push(
+      { at: 8000, step: { emit: { type: 'thread-entry', orgId: ORG, threadId: 'cos', entry: entry('g2-s', 'activity', t('activity.summary', { count: 3, time: '6 s' }), 0, { steps: [{ text: 'Reading state.md', detail: 'Read · company/state.md', durationMs: 1_000 }, { text: 'Sending to engineering', detail: 'Agent · max', durationMs: 1_000 }, { text: 'Writing the reply', detail: '', durationMs: 3_500 }], durationMs: 6_000, time: NOW }) } } },
+      { at: 8001, step: { emit: { type: 'thread-entry', orgId: ORG, threadId: 'cos', entry: entry('g2-a', 'assistant', "Sent to engineering. I'll tell you when it's done.", 0, { time: NOW }) } } },
+      { at: 8002, step: { emit: cosState(false, 0, null) } },
+      { at: 8500, step: { emit: { type: 'dispatches', orgId: ORG, dispatches: [d1('done', NOW, '@now-4000')] } } },
+      { at: 8500, step: { emit: { type: 'thread-state', state: { orgId: ORG, threadId: 'cos', busy: false, handoffsWaiting: 1, handoffTabs: [], activity: null } } } },
+    );
+    scenes.push({
+      name: 'media-dispatch', ...MEDIA,
+      state: mediaState(cosThread({ entries: mediaTurn }), {}, { departments, waiting: [a2], initiatives: mediaInitiatives.slice(0, 1) }),
+      steps: [{ waitFor: sel.composer }, { wait: 300 }],
+      record: { fps: 15, durationMs: 11000 },
+      timeline: dispatchTimeline,
     });
   }
 

@@ -1,6 +1,6 @@
 # Screenshot harness
 
-Renders the real renderer UI (`dist/renderer`, built from `src/renderer`) with a mocked `window.coa` into PNGs, one per scene, 1280 x 820 at scale factor 1 (a scene may set its own `width` and `height` in `scenes.ts`). For design review and before/after checks of a restyle. It runs no Claude Code, no git, no network and touches no real data.
+Renders the real renderer UI (`dist/renderer`, built from `src/renderer`) with a mocked `window.coa` into PNGs, one per scene, 1280 x 820 at scale factor 1 (a scene may set its own `width` and `height` in `scenes.ts`; `SHOTS_SCALE=2` renders at 2x). For design review and before/after checks of a restyle. It runs no Claude Code, no git, no network and touches no real data.
 
 ## No visible window
 
@@ -28,6 +28,23 @@ REDUCED=1 SHOTS=/other/folder node scripts/shots/shoot.mjs                   # p
 - `mock-api.ts`: a full `CoaApi` backed by a scene, typed against `src/shared/types.ts` (a contract change is a type error under `npm run typecheck`). Writes are no-ops that resolve. A scene's `events` are emitted 500 ms after the renderer subscribes with `onEvent`.
 - `preload.ts`: exposes the mock as `window.coa` with `contextBridge`, like `src/preload.ts`. The scene comes from `--shots-scene=<name>`.
 - `shoot.mjs` builds the app, bundles `preload.ts` and `scenes.ts` into `dist/shots/` and starts Electron with `main.cjs`.
+
+## Media set (`docs/media/`)
+
+The screenshots, GIFs and MP4 clips of the README come from the `media-*` scenes (1440 x 900 CSS px, sample org only). Run from the repo root, with `T` a scratch folder outside the repo; needs `ffmpeg` with libx264:
+
+```
+T=$(mktemp -d)
+SHOTS=$T/png SHOTS_SCALE=2 node scripts/shots/shoot.mjs media-hero media-focus-view media-permission media-org-chart media-department-chat media-create-org media-approve media-dispatch
+SHOTS=$T/frames SHOTS_SCALE=1 SHOTS_FRAMES=1 node scripts/shots/shoot.mjs --no-build media-approve media-dispatch
+node scripts/shots/encode.mjs $T/png $T/frames docs/media [--posters <folder>]
+```
+
+- `media-hero` -> `hero.png`, `media-focus-view` -> `focus-view.png`, `media-permission` -> `permission.png`, `media-org-chart` -> `org-chart.png`, `media-department-chat` -> `department-chat.png`, `media-create-org` -> `create-org.png`.
+- `media-approve` and `media-dispatch` have a `record` setting and a `timeline` (steps at fixed times, mock events through `emit`; `'@now'` and `'@now-<ms>'` in an event become the time the step runs). They give `<name>.gif`, `<name>.mp4` and `<name>-still.png` (last state at 2x). An offscreen window draws no mouse pointer, so recorded scenes draw one that follows `hover` and `click` steps.
+- `encode.mjs` adds a 1 px `#334155` border, optimises the PNGs (lossless) and encodes the GIFs (15 fps, loop forever) and MP4s (H.264, yuv420p, no audio).
+- Scale 2 uses the DevTools device metrics override and `Page.captureScreenshot`: an offscreen window ignores Chromium's scale switch.
+- Check every output by eye before committing: only the sample org's names, no real paths or accounts.
 
 ## Scenes
 
