@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="200" viewBox="0 0 760 200" role="img" aria-labelledby="lockup-title lockup-desc">
   <title id="lockup-title">ceo-of-agents</title>
-  <desc id="lockup-desc">The ceo-of-agents logo: the org-tree mark (a violet node for you, the CEO, above a teal node for the chief of staff, whose three branches land as commits on the teal hq git line) followed by the wordmark ceo-of-agents. Visual identity 1.1, decision 0028.</desc>
+  <desc id="lockup-desc">The ceo-of-agents logo: the org-tree mark (a violet node for you, the CEO, above a teal node for the chief of staff, whose three branches land as commits on the teal hq git line) followed by the wordmark ceo-of-agents.</desc>
 
   <!-- Solid ink plate with a 1 px line border: looks the same on GitHub light and dark (identity 1.2). -->
   <rect x="0.5" y="0.5" width="759" height="199" rx="24" fill="#0F172A" stroke="#334155"/>
