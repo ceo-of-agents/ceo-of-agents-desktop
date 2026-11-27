@@ -8,6 +8,7 @@ import { affectsSessions, ASK_FIX_GRACE_MS, askFixNext, ipcReason, settingsTarge
 import { NO_DISPATCHES, tabHasRunningDispatches } from './dispatch-logic';
 import { draftFiles } from './composer-files';
 import { draftImages } from './composer-images';
+import { draftText } from './draft-text';
 import { CreateOrgView } from './CreateOrgView';
 import { Loading } from './Loading';
 import { OrgChartView } from './OrgChartView';
@@ -47,7 +48,6 @@ export function App() {
   // The last chat shown, per org (the tab strip holds chats only). The Org chart is a view over it: chartOpen, per org.
   const [selected, setSelected] = useState<Record<OrgId, string>>({});
   const [chartOpen, setChartOpen] = useState<ChartOpen>({});
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [focusNonce, setFocusNonce] = useState(0);
   // A clicked tip: the selection to apply in the chief of staff's box once it is shown (ThreadView focuses it and clears the request).
   const [insertRequest, setInsertRequest] = useState<{ nonce: number; selStart: number; selEnd: number } | null>(null);
@@ -225,6 +225,7 @@ export function App() {
     for (const id of knownOrgs.current) if (!ids.has(id)) {
         draftImages.deleteOrg(id);
         draftFiles.deleteOrg(id);
+        draftText.deleteOrg(id);
       }
     knownOrgs.current = ids;
   }, [state.orgs]);
@@ -233,6 +234,7 @@ export function App() {
       for (const tab of data?.tabs ?? []) if (tab.status === 'closed') {
           draftImages.delete(threadKey(id, tabThread(tab.tabId)));
           draftFiles.delete(threadKey(id, tabThread(tab.tabId)));
+          draftText.delete(threadKey(id, tabThread(tab.tabId)));
         }
     }
   }, [state.orgData]);
@@ -447,8 +449,8 @@ export function App() {
   const insertTipPhrase = (phrase: string) => {
     if (!orgId) return;
     select(orgId, 'cos');
-    const ins = phraseInsertion(phrase, drafts[threadKey(orgId, 'cos')] ?? '');
-    setDrafts((d) => ({ ...d, [threadKey(orgId, 'cos')]: ins.text }));
+    const ins = phraseInsertion(phrase, draftText.get(threadKey(orgId, 'cos')));
+    draftText.set(threadKey(orgId, 'cos'), ins.text);
     setInsertRequest((r) => ({ nonce: (r?.nonce ?? 0) + 1, selStart: ins.selStart, selEnd: ins.selEnd }));
   };
 
@@ -597,14 +599,12 @@ export function App() {
               tabStatus={tab?.status ?? null}
               persona={tab?.persona ?? ''}
               permissions={permissionsFor(state, orgId, threadId)}
-              draft={drafts[key] ?? ''}
               reply={tab ? null : replyTargets[orgId] ?? null}
               onClearReply={() => setReplyTargets((r) => ({ ...r, [orgId]: null }))}
               onRestoreReply={(target) => setReplyTargets((r) => ({ ...r, [orgId]: target }))}
               focusNonce={focusNonce}
               insertRequest={tab ? null : insertRequest}
               onInsertDone={() => setInsertRequest(null)}
-              onDraft={(text) => setDrafts((d) => ({ ...d, [key]: text }))}
               pendingWork={!!tab?.pendingWork}
               onHandOver={() => tab && void api().handOver(orgId, tab.tabId)}
               onSetSettings={(patch) => changeSettings(orgId, patch)}

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { EffortLevel, InboxPendingNote, PermissionDecision, PermissionMode, PermissionRequest, SettingsPatch, TabStatus, ThreadEntry, ThreadId, ThreadInfo } from '../shared/types';
 import { ASK_USER_QUESTION, isQuestionRequest } from '../shared/questions';
 import { QuestionCard } from './QuestionCard';
@@ -9,6 +10,7 @@ import { ComposerThumbs, MessageImages } from './ComposerImages';
 import { MAX_IMAGES, imageProblemText, type ImageProblem } from '../shared/images';
 import { MAX_FILES, fileProblemText, screenFiles } from '../shared/attachments';
 import { draftBytes, draftFiles, readAttachment, splitFiles, type DraftFile } from './composer-files';
+import { draftText, useDraftText } from './draft-text';
 import { dragHasFiles, draftImages, imageFilesFromPaste, ipcErrorText, readImageFile, restoreAfterRejectedSend, screenCandidates, type DraftImage } from './composer-images';
 import { AlertCircle, ArrowDown, ArrowRightLeft, ArrowUp, Check, ChevronRight, Paperclip, X } from './icons';
 import { CopyButton } from './CopyButton';
@@ -20,7 +22,7 @@ import { InlineMarkdown, Markdown } from './Markdown';
 import { stripMarkdown } from './markdown-safety';
 import {
   activitySummary, bumpSentCount, clockTime, commandOf, commandStatus, errorAction, errorReason, groupRows, isProcessExited, lastUserText, mergeLeaving, normalizeSteps, readSentCount,
-  replyMessage, sessionDividerLabel, showHint, stepDuration, type Leaving, type ReplyTarget,
+  replyMessage, sessionDividerLabel, showHint, stepDuration, type GroupedRow, type Leaving, type ReplyTarget,
 } from './thread-logic';
 import { Button } from './ui/Button';
 import { Fold } from './ui/Fold';
@@ -302,6 +304,118 @@ function CommandEntry({ entry, fresh }: { entry: ThreadEntry; fresh: boolean }) 
   );
 }
 
+// ---------- message list ----------
+
+/** Above this many rows the list renders only the rows near the viewport; a shorter chat renders them all. */
+export const VIRTUAL_MIN_ROWS = 80;
+const VIRTUAL_OVERSCAN = 8;
+
+const rowKey = (r: GroupedRow): string => (r.type === 'day' ? `day-${r.day}` : r.type === 'tools' ? `tools-${r.id}` : r.entry.id);
+const estimateRow = (r: GroupedRow): number => (r.type === 'day' ? 76 : r.type === 'tools' ? 34 : r.entry.kind === 'assistant' ? 220 : 72);
+
+interface MessageListProps {
+  rows: GroupedRow[];
+  /** The Draft answers by entry id (they get Copy buttons). */
+  drafts: Map<string, DraftResult>;
+  orgId: string;
+  speaker: string;
+  /** The last entry of the thread: only it carries an error's action. */
+  lastId: string | undefined;
+  /** "Try again" is offered (the last message is the user's and the chat is idle). */
+  retryOffered: boolean;
+  canAskNote: boolean;
+  isFresh(id: string): boolean;
+  onRetry(): void;
+  onStart(): void;
+  onAskNote(): void;
+  /** The scroll box the virtual list measures against (null until it is mounted). */
+  scrollEl: HTMLElement | null;
+}
+
+function MessageRow({ r, p }: { r: GroupedRow; p: MessageListProps }) {
+  if (r.type === 'day') {
+    return (
+      <div className="day-sep">
+        <span>{new Date(r.time).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+      </div>
+    );
+  }
+  if (r.type === 'tools') {
+    return (
+      <div className="turn-activity done">
+        <span className="step-summary static tabular">{stepsLabel(r.count)}</span>
+      </div>
+    );
+  }
+  const action = r.entry.id === p.lastId ? errorAction(r.entry, p.retryOffered) : null;
+  return (
+    <div className={`row-wrap ${r.gap}`} data-kind={r.entry.kind}>
+      <Entry
+        entry={r.entry}
+        orgId={p.orgId}
+        speaker={p.speaker}
+        first={r.first}
+        fresh={p.isFresh(r.entry.id)}
+        activity={r.activity}
+        draft={p.drafts.get(r.entry.id)}
+        // Only the latest error in a thread carries the action ("Try again" / "Start again"): an older error plate has none, whatever its text.
+        action={action === 'askNote' && !p.canAskNote ? null : action}
+        onRetry={p.onRetry}
+        onStart={p.onStart}
+        onAskNote={p.onAskNote}
+      />
+    </div>
+  );
+}
+
+/** Only the rows near the viewport are in the DOM; each sits in an absolutely placed box that the virtualizer measures. */
+function VirtualRows(p: MessageListProps) {
+  const { rows } = p;
+  const virt = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => p.scrollEl,
+    estimateSize: (i) => estimateRow(rows[i]),
+    overscan: VIRTUAL_OVERSCAN,
+    // A chat that just opened starts at its bottom (the scroll box is not known yet): begin past the end, the box clamps it. A list that
+    // grows past the threshold while the box is there keeps the reader where they are.
+    initialOffset: () => (p.scrollEl ? p.scrollEl.scrollTop : rows.reduce((n, r) => n + estimateRow(r), 0)),
+    getItemKey: (i) => rowKey(rows[i]),
+  });
+  const lastRow = rows[rows.length - 1];
+  return (
+    <div className="vlist" style={{ height: virt.getTotalSize() }} data-last={lastRow?.type === 'entry' ? lastRow.entry.kind : undefined}>
+      {virt.getVirtualItems().map((v) => {
+        const prev = rows[v.index - 1];
+        return (
+          <div
+            key={v.key}
+            ref={virt.measureElement}
+            data-index={v.index}
+            className="vrow"
+            data-first={v.index === 0 ? '' : undefined}
+            data-after={prev?.type === 'entry' ? prev.entry.kind : undefined}
+            style={{ transform: `translateY(${v.start}px)` }}
+          >
+            <MessageRow r={rows[v.index]} p={p} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The thread's rows. Memoized: its props stay the same while the user types, so a keystroke renders no message. */
+const MessageList = memo(function MessageList(p: MessageListProps) {
+  if (p.rows.length > VIRTUAL_MIN_ROWS) return <VirtualRows {...p} />;
+  return (
+    <>
+      {p.rows.map((r) => (
+        <MessageRow key={rowKey(r)} r={r} p={p} />
+      ))}
+    </>
+  );
+});
+
 /** The live line of the turn in flight: what it is doing now and for how long. Folds into a summary row when the turn ends. */
 function LiveLine({ thread, permissionPending, questionPending }: { thread: ThreadInfo; permissionPending: boolean; questionPending: boolean }) {
   const now = useNow(true);
@@ -385,6 +499,65 @@ export function PermissionCard({ request, onOpenSettings }: { request: Permissio
 
 const MAX_COMPOSER_PX = 8 * 22 + 6; // eight lines of 22 px plus the textarea's own padding
 
+/** The composer's text box. It reads and writes the chat's draft in `draftText`, so a keystroke renders this and its two neighbours below, not the thread. */
+function DraftBox({ draftKey, inputRef, reply, disabled, placeholder, onTyped, onSubmit, onEscape }: {
+  draftKey: string;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
+  reply: ReplyTarget | null;
+  disabled: boolean;
+  placeholder: string;
+  onTyped(): void;
+  onSubmit(): void;
+  onEscape(): void;
+}) {
+  const text = useDraftText(draftKey);
+  // The box grows with the text, one to eight lines.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_PX)}px`;
+  }, [inputRef, text, reply]);
+  return (
+    <textarea
+      ref={inputRef}
+      rows={1}
+      value={text}
+      disabled={disabled}
+      placeholder={placeholder}
+      onChange={(e) => {
+        draftText.set(draftKey, e.target.value);
+        onTyped();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          onSubmit();
+        } else if (e.key === 'Escape' && reply) {
+          e.preventDefault();
+          onEscape();
+        }
+      }}
+    />
+  );
+}
+
+/** The send button: ready when the text or an attachment is there. */
+function SendButton({ draftKey, hasAttachments, canWrite, onClick }: { draftKey: string; hasAttachments: boolean; canWrite: boolean; onClick(): void }) {
+  const hasContent = useDraftText(draftKey).trim() !== '' || hasAttachments;
+  return (
+    <button type="button" className={`send${hasContent ? ' ready' : ''}`} aria-label={t('thread.send')} disabled={!canWrite || !hasContent} onClick={onClick}>
+      <ArrowUp />
+    </button>
+  );
+}
+
+/** The line at the left of the composer foot: the command hint while the text starts with "!", else the usual hint (`otherHint`). */
+function ComposerHint({ draftKey, canWrite, name, otherHint }: { draftKey: string; canWrite: boolean; name: string; otherHint: string }) {
+  const text = useDraftText(draftKey);
+  return <span className="hint">{canWrite && commandOf(text) !== null ? t('composer.commandHint', { name }) : otherHint}</span>;
+}
+
 /** A picker in the footer: the face reads "Model: Opus"; the native menu behind it lists the options (the current one has the check). */
 function QuietSelect({ label, shown, tip, value, disabled, onChange, children }: { label: string; shown: string; tip?: string; value: string; disabled: boolean; onChange(value: string): void; children: React.ReactNode }) {
   const el = (
@@ -412,15 +585,13 @@ interface Props {
   tabStatus: TabStatus | null;
   persona: string;
   permissions: PermissionRequest[];
-  draft: string;
   /** The waiting item being replied to (chief of staff only); shown as a chip in the composer. */
   reply: ReplyTarget | null;
   focusNonce: number;
-  /** A tip was clicked (chief of staff only): when `nonce` is new, the box takes focus and selects `selStart`..`selEnd` (the text is already in `draft`). */
+  /** A tip was clicked (chief of staff only): when `nonce` is new, the box takes focus and selects `selStart`..`selEnd` (the text is already in `draftText`). */
   insertRequest?: { nonce: number; selStart: number; selEnd: number } | null;
   /** The insert request was applied: the app drops it, so a later mount of this chat does not apply it again. */
   onInsertDone?(): void;
-  onDraft(text: string): void;
   onClearReply(): void;
   /** Puts a reply chip back (after a refused send). */
   onRestoreReply(target: ReplyTarget): void;
@@ -451,7 +622,13 @@ export function ThreadView(p: Props) {
   const [draftOpen, setDraftOpen] = useState(false);
   const handingOver = p.tabStatus === 'handing-over';
   const speaker = stripMarkdown(thread?.speaker || p.speakerFallback);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  // The scroll box as state too, so the virtual list gets it once it is mounted.
+  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
+  const setBody = useCallback((el: HTMLDivElement | null) => {
+    bodyRef.current = el;
+    setBodyEl(el);
+  }, []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   // Follows the end while the reader is at the bottom (see stick-to-bottom.ts); the state it exposes drives the Jump button.
@@ -469,9 +646,9 @@ export function ThreadView(p: Props) {
   const flsRef = useRef(fls);
   flsRef.current = fls;
   const fileInput = useRef<HTMLInputElement>(null);
-  // The text and chip as they are now, for the catch of a refused send (the closure of `submit` holds the values from the click).
-  const nowRef = useRef({ draft: p.draft, reply: p.reply });
-  nowRef.current = { draft: p.draft, reply: p.reply };
+  // The chip as it is now, for the catch of a refused send (the closure of `submit` holds the value from the click). The text is read from `draftText`.
+  const nowRef = useRef({ reply: p.reply });
+  nowRef.current = { reply: p.reply };
   const nowInsert = useRef<{ selStart: number; selEnd: number; done?(): void } | null>(null);
   nowInsert.current = p.insertRequest ? { selStart: p.insertRequest.selStart, selEnd: p.insertRequest.selEnd, done: p.onInsertDone } : null;
   const imgSeq = useRef(0);
@@ -483,7 +660,6 @@ export function ThreadView(p: Props) {
   // Messages that were there when the thread first showed do not animate; later ones do.
   const baseline = useRef<Set<string> | null>(null);
   if (baseline.current === null && thread) baseline.current = new Set(entries.map((e) => e.id));
-  const isFresh = (id: string) => baseline.current !== null && !baseline.current.has(id);
 
   const syncView = useCallback(() => {
     const next = stick.state();
@@ -554,14 +730,6 @@ export function ThreadView(p: Props) {
     return () => cancelAnimationFrame(id);
   }, [insertNonce]);
 
-  // The box grows with the text, one to eight lines.
-  useLayoutEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_PX)}px`;
-  }, [p.draft, p.reply]);
-
   const onScroll = () => act((m) => { stick.onUserScroll(m); return null; });
   // The reader means to go up: unpin before the scroll event lands, so the next content change does not pull them back. If the thread has
   // not moved two frames later (a nested scroller took the wheel, a key went to something else), the intent is dropped. One check at a time.
@@ -594,7 +762,7 @@ export function ThreadView(p: Props) {
   const touchY = useRef(0);
 
   const canWrite = !handingOver;
-  const hasContent = p.draft.trim() !== '' || imgs.length > 0 || fls.length > 0;
+  const hasAttachments = imgs.length > 0 || fls.length > 0;
   // Screens the files (type, size, count), reads the accepted ones and adds them to the composer; the first problem shows as one line under the box.
   // PNG, JPEG, GIF and WebP go as images (thumbnails); every other file goes as a file (chip).
   const addFiles = (all: File[]) => {
@@ -632,16 +800,17 @@ export function ThreadView(p: Props) {
     setImgError(firstProblem);
   };
   const submit = () => {
-    const text = p.draft.trim();
-    if ((!text && imgs.length === 0 && fls.length === 0) || !canWrite) return;
+    const typed = draftText.get(draftKey);
+    const text = typed.trim();
+    if ((!text && !hasAttachments) || !canWrite) return;
     // "!" runs a command as the user (the main process confirms first): images and the reply chip stay for the next message.
     const command = commandOf(text);
     if (command !== null) {
-      const draft = p.draft;
+      const draft = typed;
       void api()
         .runCommand(p.orgId, p.threadId, command)
         .then((started) => {
-          if (started && nowRef.current.draft === draft) p.onDraft('');
+          if (started && draftText.get(draftKey) === draft) draftText.set(draftKey, '');
           if (started) act((m) => stick.onSend(m));
         })
         .catch((e: unknown) => setImgError(ipcErrorText(e)));
@@ -657,19 +826,19 @@ export function ThreadView(p: Props) {
         if (sending.length === 0 && sendingFiles.length === 0) throw e;
         // Give back what was sent (text, images, reply chip), each part only if that part is empty now.
         const back = restoreAfterRejectedSend(
-          { text: p.draft, images: imgs, reply: p.reply },
-          { text: nowRef.current.draft, images: imgsRef.current, reply: nowRef.current.reply },
+          { text: typed, images: imgs, reply: p.reply },
+          { text: draftText.get(draftKey), images: imgsRef.current, reply: nowRef.current.reply },
         );
         setImgError(ipcErrorText(e));
         setImgs(back.images);
         if (flsRef.current.length === 0) setFls(sendingFiles);
-        if (back.text !== nowRef.current.draft) p.onDraft(back.text);
+        if (back.text !== draftText.get(draftKey)) draftText.set(draftKey, back.text);
         if (back.reply && back.reply !== nowRef.current.reply) p.onRestoreReply(back.reply);
       });
     setImgs([]);
     setFls([]);
     setImgError('');
-    p.onDraft('');
+    draftText.set(draftKey, '');
     if (p.reply) p.onClearReply();
     setSent(bumpSentCount(storage()));
     act((m) => stick.onSend(m));
@@ -690,9 +859,15 @@ export function ThreadView(p: Props) {
     act((m) => stick.onSend(m));
     void api().send(p.orgId, p.threadId, t('dept.msg.askNote', { cosName: p.cosName }));
   };
-  const visibleAction = (a: ReturnType<typeof errorAction>) => (a === 'askNote' && !canAskNote ? null : a);
+  // The message list is memoized: it gets these callbacks as stable functions that call the latest closures.
+  const latest = useRef({ retry, askNote });
+  latest.current = { retry, askNote };
+  const onRetry = useCallback(() => latest.current.retry(), []);
+  const onAskNote = useCallback(() => latest.current.askNote(), []);
+  const onStart = useCallback(() => inputRef.current?.focus(), []);
+  const isFresh = useCallback((id: string) => baseline.current !== null && !baseline.current.has(id), []);
   const fillDraft = (text: string) => {
-    p.onDraft(text);
+    draftText.set(draftKey, text);
     inputRef.current?.focus();
   };
 
@@ -754,7 +929,7 @@ export function ThreadView(p: Props) {
       <div className="thread-scroll">
         <div
           className="thread-body"
-          ref={bodyRef}
+          ref={setBody}
           onScroll={onScroll}
           onWheel={(e) => intent(wheelIntent(e.deltaX, e.deltaY, !!bodyRef.current && nestedScrollerConsumes(e.target, bodyRef.current, e.deltaY)))}
           onTouchStart={(e) => { touchY.current = e.touches[0]?.clientY ?? 0; }}
@@ -784,41 +959,20 @@ export function ThreadView(p: Props) {
                 )}
               </div>
             )}
-            {rows.map((r) => {
-              if (r.type === 'day') {
-                return (
-                  <div key={`day-${r.day}`} className="day-sep">
-                    <span>{new Date(r.time).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                  </div>
-                );
-              }
-              if (r.type === 'tools') {
-                return (
-                  <div key={`tools-${r.id}`} className="turn-activity done">
-                    <span className="step-summary static tabular">{stepsLabel(r.count)}</span>
-                  </div>
-                );
-              }
-              const isLast = r.entry.id === lastEntry?.id;
-              return (
-                <div key={r.entry.id} className={`row-wrap ${r.gap}`} data-kind={r.entry.kind}>
-                  <Entry
-                    entry={r.entry}
-                    orgId={p.orgId}
-                    speaker={speaker}
-                    first={r.first}
-                    fresh={isFresh(r.entry.id)}
-                    activity={r.activity}
-                    draft={drafts.get(r.entry.id)}
-                    // Only the latest error in a thread carries the action ("Try again" / "Start again"): an older error plate has none, whatever its text.
-                    action={isLast ? visibleAction(errorAction(r.entry, retryText !== null)) : null}
-                    onRetry={retry}
-                    onStart={() => inputRef.current?.focus()}
-                    onAskNote={askNote}
-                  />
-                </div>
-              );
-            })}
+            <MessageList
+              rows={rows}
+              drafts={drafts}
+              orgId={p.orgId}
+              speaker={speaker}
+              lastId={lastEntry?.id}
+              retryOffered={retryText !== null}
+              canAskNote={canAskNote}
+              isFresh={isFresh}
+              onRetry={onRetry}
+              onStart={onStart}
+              onAskNote={onAskNote}
+              scrollEl={bodyEl}
+            />
             {thread?.commands?.map((c) => (
               <div key={c.id} className="row-wrap new">
                 <div className="msg user command">
@@ -936,29 +1090,17 @@ export function ThreadView(p: Props) {
                 <Paperclip />
               </button>
             </Tooltip>
-            <textarea
-              ref={inputRef}
-              rows={1}
-              value={p.draft}
+            <DraftBox
+              draftKey={draftKey}
+              inputRef={inputRef}
+              reply={p.reply}
               disabled={!canWrite}
               placeholder={placeholder}
-              onChange={(e) => {
-                p.onDraft(e.target.value);
-                setImgError('');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  submit();
-                } else if (e.key === 'Escape' && p.reply) {
-                  e.preventDefault();
-                  p.onClearReply();
-                }
-              }}
+              onTyped={() => setImgError('')}
+              onSubmit={submit}
+              onEscape={p.onClearReply}
             />
-            <button type="button" className={`send${hasContent ? ' ready' : ''}`} aria-label={t('thread.send')} disabled={!canWrite || !hasContent} onClick={submit}>
-              <ArrowUp />
-            </button>
+            <SendButton draftKey={draftKey} hasAttachments={hasAttachments} canWrite={canWrite} onClick={submit} />
           </div>
         </div>
         {hasVideo(fls) && <p className="composer-note">{t('composer.videoHint')}</p>}
@@ -979,13 +1121,12 @@ export function ThreadView(p: Props) {
         )}
         <div className="composer-foot">
           {/* The hint gives way first: it hides while a change waits for the next message, and shrinks before the pickers. */}
-          <span className="hint">
-            {canWrite && commandOf(p.draft) !== null
-              ? t('composer.commandHint', { name: speaker || stripMarkdown(p.title) })
-              : canWrite && showHint(sent) && !runPendingNote(thread)
-                ? t('composer.hint')
-                : ''}
-          </span>
+          <ComposerHint
+            draftKey={draftKey}
+            canWrite={canWrite}
+            name={speaker || stripMarkdown(p.title)}
+            otherHint={canWrite && showHint(sent) && !runPendingNote(thread) ? t('composer.hint') : ''}
+          />
           <span className="foot-right">
             <Tooltip label={t('draft.tip')} placement="top">
               <Button small disabled={!canWrite} onClick={() => setDraftOpen(true)}>
